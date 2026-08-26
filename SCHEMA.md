@@ -9,6 +9,42 @@ nothing describing it was ever committed to a repo. This is the paper trail.
 
 ---
 
+## Multi-tenancy: the `site` column
+
+**Discovered after initial documentation, confirmed via live browser Network tab:** this
+project is very likely a **shared backend across the whole Matokipedo country-tracker
+family**, not a Zimbabwe-only project. Evidence:
+
+- The Supabase project itself is named generically `zispqos` — not `zwispqos` or
+  anything Zimbabwe-specific.
+- Multiple tables (`translations`, `qos_reports`, and likely others) have a `site` text
+  column.
+- The live Zimbabwe site's actual outgoing requests filter by it, e.g.:
+  ```
+  qos_reports?select=isp,stars,city,comment,created_at&site=eq.zw&order=created_at.desc&limit=1000
+  ```
+
+**What this means in practice:** `site` is the tenant discriminator. `'zw'` = Zimbabwe.
+Onboarding a new country (Botswana, or relaunching South Africa) very likely means
+reusing this exact project and these exact tables — just inserting/selecting with that
+country's own `site` code — rather than creating a second Supabase project from scratch.
+
+**Not yet confirmed:**
+- Whether rows for any other `site` value already exist in these tables (e.g. from an
+  earlier South Africa integration attempt).
+- The exact place in `index.html`'s JS where `site` gets attached to outgoing
+  insert/select calls (not fully visible in every code excerpt reviewed so far — read the
+  live file directly to confirm the mechanism before replicating it for a new country).
+- Whether `customers` and `tester_feedback` also carry a `site` column (not confirmed
+  either way — check before assuming).
+
+**Operational consequence:** because this project's anon key is shared, rotating it
+(e.g. after an exposure) affects every country's live site simultaneously, not just one.
+Before ever rotating this key again, confirm every site currently using it and update all
+of them together, or the others will silently flip from 🟢 to 🔴.
+
+---
+
 ## Tables
 
 ### `qos_reports`
@@ -191,6 +227,11 @@ to `.gitignore` before the first commit.
 
 ## Known gaps / follow-ups
 
+- [ ] Confirm whether `site` values other than `'zw'` already exist in any table —
+      check before assuming Botswana/South Africa would be starting from zero rows.
+- [ ] Confirm `customers` and `tester_feedback` do/don't have a `site` column too.
+- [ ] Find and document the exact code path in `index.html` that sets `site` on
+      outgoing requests.
 - [ ] Confirm exact column types for `conversions`, `referral_clicks`,
       `speed_reports` (largest table, 17 cols), and `status_reports` — only
       partially known from client code, not from Table Editor directly.
@@ -199,3 +240,6 @@ to `.gitignore` before the first commit.
       `phone_number` in the request (not just "any public update").
 - [ ] Consider whether `conversions.reasons` is `text[]` or `jsonb` — affects
       how it should be queried/exported later.
+- [ ] Confirm whether the `schema.sql` file referenced in `index.html`'s own code
+      comments actually exists in `zwispqosd` — it wasn't in the file list as of
+      this session.
