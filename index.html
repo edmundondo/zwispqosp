@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="app-version" content="0.2.0">
+<title>Matokipedo Admin</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121821; --panel2:#161d28; --border:#232c3a;
+    --text:#e8edf4; --muted:#8493a8; --accent:#4fd1c5; --accent2:#7c9cff;
+    --green:#3ecf8e; --yellow:#e8b93f; --red:#e8615f; --red-dark:#7a1e1e;
+    --grey:#5c6b80; --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(circle at 20% -10%, #182233 0%, var(--bg) 45%) fixed;
+    color:var(--text);min-height:100vh;
+  }
+  a{color:var(--accent2);}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---------- Login screen ---------- */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:100%;max-width:360px;}
+  .login-card h1{font-size:20px;margin:0 0 4px;}
+  .login-card .sub{color:var(--muted);font-size:13px;margin-bottom:20px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .field input{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:14px;}
+  .field input:focus{outline:none;border-color:var(--accent2);}
+  .btn{background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13.5px;padding:9px 16px;}
+  .btn:hover{border-color:var(--accent2);}
+  .btn.primary{background:rgba(79,209,197,.15);border-color:rgba(79,209,197,.4);color:var(--accent);font-weight:600;width:100%;}
+  .btn.danger{background:rgba(232,97,95,.12);border-color:rgba(232,97,95,.4);color:var(--red);}
+  .msg{font-size:12.5px;margin-top:12px;}
+  .msg.error{color:var(--red);}
+  .msg.ok{color:var(--green);}
+
+  /* ---------- App shell ---------- */
+  #appScreen{display:none;}
+  header.top{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:14px 22px;border-bottom:1px solid var(--border);background:rgba(18,24,33,.7);
+    position:sticky;top:0;backdrop-filter:blur(6px);z-index:10;
+  }
+  header.top h1{font-size:16px;margin:0;font-weight:700;}
+  header.top .eyebrow{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;}
+  .site-select{margin-left:auto;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;}
+  .whoami{font-size:12px;color:var(--muted);}
+
+  nav.tabs{display:flex;gap:4px;padding:10px 22px 0;flex-wrap:wrap;border-bottom:1px solid var(--border);}
+  nav.tabs button{
+    background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;padding:10px 14px;
+    border-bottom:2px solid transparent;
+  }
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
+  nav.tabs button:hover{color:var(--text);}
+
+  main{max-width:1080px;margin:0 auto;padding:24px 22px 80px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px;}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .stat .num{font-size:24px;font-weight:700;}
+  .stat .lbl{font-size:11.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.03em;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
+  .card h2{font-size:14px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);}
+  .card .hint{font-size:12px;color:var(--muted);margin:-8px 0 14px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--border);}
+  td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .bar-row{display:flex;align-items:center;gap:10px;padding:7px 0;}
+  .bar-row .bar-label{flex:0 0 190px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bar-track{flex:1 1 auto;background:var(--panel2);border-radius:6px;height:10px;overflow:hidden;}
+  .bar-fill{height:100%;background:var(--accent);border-radius:6px;}
+  .bar-val{flex:0 0 84px;text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:3px 9px;border-radius:999px;}
+  .pill.prospect{background:rgba(92,107,128,.18);color:var(--grey);}
+  .pill.contacted{background:rgba(124,156,255,.15);color:var(--accent2);}
+  .pill.trial{background:rgba(232,185,63,.15);color:var(--yellow);}
+  .pill.active{background:rgba(62,207,142,.15);color:var(--green);}
+  .pill.lapsed,.pill.declined{background:rgba(232,97,95,.15);color:var(--red);}
+
+  select.status-edit{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:12px;}
+  input.inline-input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-size:12px;width:100%;}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .empty{color:var(--muted);font-style:italic;font-size:13px;padding:10px 0;}
+  .error-note{color:var(--red);font-size:13px;}
+  .loading{color:var(--muted);font-size:13px;}
+
+  .lang-group{margin-bottom:18px;}
+  .lang-group h3{font-size:13px;margin:0 0 8px;color:var(--text);}
+  .missing-lang-note{font-size:11.5px;color:var(--yellow);background:rgba(232,185,63,.1);border:1px solid rgba(232,185,63,.3);border-radius:8px;padding:8px 10px;margin-bottom:14px;}
+
+  footer{max-width:1080px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:11px;}
+</style>
+</head>
+<body>
+
+<!-- ============================== LOGIN ============================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="eyebrow" style="color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Matokipedo · Privileged</div>
+    <h1>Admin sign-in</h1>
+    <div class="sub">Connects to the same Supabase project as the public tracker sites, with an admin-only session.</div>
+
+    <button class="btn" id="googleBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
+      <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.4 19 12 24 12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 16.3 3 9.6 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.3 0 10.1-2 13.7-5.4l-6.3-5.3C29.4 36 26.8 37 24 37c-5.3 0-9.7-3.4-11.3-8l-6.6 5.1C9.5 40.6 16.2 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 3.1-3.1 5.6-5.9 7.3l6.3 5.3C39.9 37.1 45 31.2 45 24c0-1.4-.1-2.4-.4-3.5z"/></svg>
+      Sign in with Google
+    </button>
+    <button class="btn" id="passkeyBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;">
+      🔐 Sign in with a passkey
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 16px;color:var(--muted);font-size:11px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>OR<div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <div class="field">
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="username" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn primary" id="loginBtn" type="button">Sign in with password</button>
+    <div class="msg" id="loginMsg"></div>
+    <div class="msg" style="color:var(--muted);margin-top:18px;">
+      First time? Create your account with a password in Supabase → Authentication → Users, run the one-line
+      <code>insert into admins ...</code> from <code>supabase_admin_migration.sql</code> with that user's UUID,
+      then sign in with the password once to link Google and/or register a passkey from the Security panel —
+      see SETUP.md.
+    </div>
+  </div>
+</div>
+
+<!-- ============================== APP ============================== -->
+<div id="appScreen">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Matokipedo</div>
+      <h1>Privileged Admin</h1>
+    </div>
+    <select class="site-select" id="siteSelect"></select>
+    <span class="whoami" id="whoami"></span>
+    <button class="btn" id="signOutBtn" type="button">Sign out</button>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="providers">Provider analytics</button>
+    <button data-tab="licensing">ISP licensing</button>
+    <button data-tab="reports">Benchmark reports</button>
+    <button data-tab="moderation">Moderation</button>
+    <button data-tab="translations">Translations</button>
+    <button data-tab="export">Export</button>
+  </nav>
+
+  <main>
+    <div class="panel active" id="panel-overview">
+      <div class="stat-grid" id="overviewStats"></div>
+      <div class="card">
+        <h2>What this pulls together</h2>
+        <div class="hint" style="margin:0;">
+          Every number here reads the full history for the selected site directly from Supabase — not the
+          last-1000-rows client cache the public site keeps for its own live view. Switch the site selector
+          above as more country trackers (bw, za, …) come online.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-providers">
+      <div class="card">
+        <h2>QoS rating average</h2>
+        <div id="providerQos"></div>
+      </div>
+      <div class="card">
+        <h2>Status reliability (30 days, % reports = live)</h2>
+        <div id="providerReliability"></div>
+      </div>
+      <div class="card">
+        <h2>Speed test average (Mbps down)</h2>
+        <div id="providerSpeed"></div>
+      </div>
+      <div class="card">
+        <h2>Net conversions (gained − lost)</h2>
+        <div id="providerConversions"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-licensing">
+      <div class="card">
+        <h2>Add / update a licensing record</h2>
+        <div class="hint">Operationalizes the "reach out to discuss a licensed subscription" line on the free teaser report each ISP can see on the public site.</div>
+        <div id="licenseForm"></div>
+      </div>
+      <div class="card">
+        <h2>Pipeline</h2>
+        <div id="licenseTable"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-reports">
+      <div class="card">
+        <h2>Full benchmark report (paid-tier)</h2>
+        <div class="hint">
+          Same shape as the free public teaser, plus what the CTA promises: raw anonymized comments and a
+          keyword complaint-cluster tally. Opens in a new tab, printable to PDF.
+        </div>
+        <div id="reportPicker"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-moderation">
+      <div class="card">
+        <h2>Recent submissions</h2>
+        <div class="hint">Delete spam or abusive entries. This reads and writes with admin privileges — the public site never sees these controls.</div>
+        <div id="moderationTableSelect"></div>
+        <div id="moderationTable"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-translations">
+      <div class="card">
+        <h2>Translation review queue</h2>
+        <div class="missing-lang-note">
+          Six languages are still greyed out on the Lite pages because nobody has a trustworthy translation yet:
+          TjiKalanga, Chibarwe, Khoisan (Tjwao), Nambya, Ndau, Tonga. Community-suggested strings for those (and
+          any other language) land here — approve once you're confident, then hand the approved set to whoever
+          next regenerates the Lite pages.
+        </div>
+        <div id="translationQueue"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-export">
+      <div class="card">
+        <h2>CSV export</h2>
+        <div class="hint">Exports the selected site's full history for the chosen table.</div>
+        <div id="exportControls"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================================
+   Same project as zispqos / zwispqosd — public anon key only. Privilege
+   comes from signing in + the `is_admin()` RLS policies added by
+   supabase_admin_migration.sql, not from a different, more powerful key.
+   ========================================================================= */
+const SUPABASE_CONFIG = {
+  url: "https://etdxreehedewcctkdvuo.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0ZHhyZWVoZWRld2NjdGtkdnVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzOTkwMDQsImV4cCI6MjEwMTk3NTAwNH0.8ohFQBJzglP2cjsdQW-xQ-g2DPNG0iZiNzRTLQDsVMY"
+};
+let supa = null;
+try{
+  if(!window.supabase) throw new Error("Supabase library did not load");
+  // experimental.passkey: true turns on supa.auth.registerPasskey()/signInWithPasskey()
+  // (Supabase's native WebAuthn support, currently in beta — needs supabase-js >=2.105.0,
+  // which the unpinned `@2` CDN tag already satisfies as of when this was written).
+  supa = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+    auth: { experimental: { passkey: true } }
+  });
+}catch(e){
+  console.error("Supabase client init failed:", e);
+}
+
+// Single funnel for "a session just appeared", whether from a typed password, an OAuth
+// redirect coming back (Google), or a passkey ceremony completing. onSignedIn() itself
+// guards against being run twice for the same user.
+if(supa){
+  supa.auth.onAuthStateChange((_event, session) => {
+    if(session && session.user){ onSignedIn(session.user); }
+  });
+}
+
+const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
+const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)" };
+
+let currentSite = "zw";
+let currentUser = null;
+
+/* ---------- auth ---------- */
+async function tryRestoreSession(){
+  if(!supa){
+    const msg = document.getElementById("loginMsg");
+    msg.className = "msg error";
+    msg.textContent = "Couldn't load the Supabase library (offline, or a network/ad-blocker issue) — check your connection and reload.";
+    document.getElementById("loginBtn").disabled = true;
+    return;
+  }
+  try{
+    const { data } = await supa.auth.getSession();
+    if(data && data.session){ await onSignedIn(data.session.user); }
+  }catch(e){
+    console.error("Session restore failed:", e);
+  }
+}
+
+document.getElementById("loginBtn").addEventListener("click", doSignIn);
+document.getElementById("loginPassword").addEventListener("keydown", e=>{ if(e.key==="Enter") doSignIn(); });
+
+document.getElementById("googleBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("loginMsg");
+  if(!supa){ msg.className="msg error"; msg.textContent = "Supabase library isn't loaded — reload the page."; return; }
+  msg.className = "msg"; msg.textContent = "Redirecting to Google…";
+  // Comes back to this same page; the top-level onAuthStateChange listener picks up
+  // the resulting session and calls onSignedIn() — no callback route needed since
+  // this is a single static page, not a multi-route app.
+  const { error } = await supa.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin + window.location.pathname }
+  });
+  if(error){ msg.className = "msg error"; msg.textContent = error.message; }
+});
+
+document.getElementById("passkeyBtn").addEventListener("click", async ()=>{
+  const msg = document.getElementById("loginMsg");
+  if(!supa){ msg.className="msg error"; msg.textContent = "Supabase library isn't loaded — reload the page."; return; }
+  msg.className = "msg"; msg.textContent = "Follow your browser/device prompt for your passkey…";
+  try{
+    const { data, error } = await supa.auth.signInWithPasskey();
+    if(error) throw error;
+    if(data && data.user) await onSignedIn(data.user);
+  }catch(e){
+    msg.className = "msg error";
+    msg.textContent = (e && e.message) ? e.message : "Passkey sign-in failed, was cancelled, or none is registered on this device yet.";
+  }
+});
+
+async function doSignIn(){
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const msg = document.getElementById("loginMsg");
+  if(!supa){ msg.className="msg error"; msg.textContent = "Supabase library isn't loaded — reload the page."; return; }
+  msg.className = "msg"; msg.textContent = "Signing in…";
+  if(!email || !password){ msg.className="msg error"; msg.textContent = "Enter both email and password."; return; }
+  const { data, error } = await supa.auth.signInWithPassword({ email, password });
+  if(error){ msg.className = "msg error"; msg.textContent = error.message; return; }
+  await onSignedIn(data.user);
+}
+
+let appWired = false;
+async function onSignedIn(user){
+  if(currentUser && currentUser.id === user.id) return; // already handled (password + listener can both fire)
+  const { data: adminRow, error } = await supa.from("admins").select("email").eq("user_id", user.id).maybeSingle();
+  if(error || !adminRow){
+    document.getElementById("loginMsg").className = "msg error";
+    document.getElementById("loginMsg").textContent = "Signed in, but this account isn't in the admins table — access denied.";
+    await supa.auth.signOut();
+    return;
+  }
+  currentUser = user;
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appScreen").style.display = "block";
+  renderWhoami(user);
+  await populateSiteSelect();
+  if(!appWired){ wireTabs(); wireSiteSelect(); appWired = true; }
+  await loadActiveTab();
+}
+
+function renderWhoami(user){
+  const hasGoogle = (user.identities||[]).some(i=>i.provider==="google");
+  const el = document.getElementById("whoami");
+  el.innerHTML = `Signed in as ${user.email}
+    ${!hasGoogle ? `<button class="btn" id="linkGoogleBtn" type="button" style="margin-left:8px;padding:3px 9px;font-size:11px;">Link Google</button>` : ""}
+    <button class="btn" id="addPasskeyBtn" type="button" style="margin-left:6px;padding:3px 9px;font-size:11px;">🔐 Add a passkey</button>
+    <span id="securityMsg" style="margin-left:8px;font-size:11px;"></span>`;
+  const linkBtn = document.getElementById("linkGoogleBtn");
+  if(linkBtn) linkBtn.addEventListener("click", async ()=>{
+    const { error } = await supa.auth.linkIdentity({ provider: "google" });
+    if(error){ document.getElementById("securityMsg").textContent = error.message; document.getElementById("securityMsg").style.color = "var(--red)"; }
+    // on success this redirects away and back — nothing else to do here
+  });
+  document.getElementById("addPasskeyBtn").addEventListener("click", async ()=>{
+    const msg = document.getElementById("securityMsg");
+    msg.style.color = "var(--muted)"; msg.textContent = "Follow your browser/device prompt…";
+    try{
+      const { error } = await supa.auth.registerPasskey();
+      if(error) throw error;
+      msg.style.color = "var(--green)"; msg.textContent = "Passkey registered — you can sign in with it next time.";
+    }catch(e){
+      msg.style.color = "var(--red)"; msg.textContent = (e && e.message) ? e.message : "Couldn't register a passkey on this device/browser.";
+    }
+  });
+}
+
+document.getElementById("signOutBtn").addEventListener("click", async ()=>{
+  await supa.auth.signOut();
+  location.reload();
+});
+
+/* ---------- sites ---------- */
+async function populateSiteSelect(){
+  const sel = document.getElementById("siteSelect");
+  let sites = new Set(["zw"]);
+  try{
+    const { data } = await supa.from("qos_reports").select("site").limit(2000);
+    (data||[]).forEach(r=>sites.add(r.site));
+  }catch(e){ /* fine, default to zw */ }
+  sel.innerHTML = [...sites].sort().map(s=>`<option value="${s}">${SITE_LABELS[s]||s}</option>`).join("");
+  sel.value = currentSite;
+}
+function wireSiteSelect(){
+  document.getElementById("siteSelect").addEventListener("change", e=>{
+    currentSite = e.target.value;
+    loadActiveTab();
+  });
+}
+
+/* ---------- tabs ---------- */
+function wireTabs(){
+  document.querySelectorAll("nav.tabs button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("panel-"+btn.dataset.tab).classList.add("active");
+      loadActiveTab();
+    });
+  });
+}
+function activeTabName(){
+  return document.querySelector("nav.tabs button.active").dataset.tab;
+}
+async function loadActiveTab(){
+  const tab = activeTabName();
+  try{
+    if(tab==="overview") await renderOverview();
+    else if(tab==="providers") await renderProviderAnalytics();
+    else if(tab==="licensing") await renderLicensing();
+    else if(tab==="reports") await renderReportPicker();
+    else if(tab==="moderation") await renderModeration();
+    else if(tab==="translations") await renderTranslations();
+    else if(tab==="export") renderExportControls();
+  }catch(e){
+    console.error(e);
+  }
+}
+
+/* ---------- data helpers ---------- */
+async function fetchAll(table, extra){
+  let q = supa.from(table).select("*").eq("site", currentSite).order("created_at",{ascending:false}).limit(5000);
+  if(extra) q = extra(q);
+  const { data, error } = await q;
+  if(error) throw error;
+  return data || [];
+}
+function avg(nums){ return nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : null; }
+function groupBy(rows, key){
+  const m = {};
+  rows.forEach(r=>{ (m[r[key]] = m[r[key]] || []).push(r); });
+  return m;
+}
+function barsHtml(entries, fmt, maxIsBest){
+  if(!entries.length) return `<div class="empty">No data yet for this site.</div>`;
+  const vals = entries.map(e=>e.val).filter(v=>v!==null && !isNaN(v));
+  const max = vals.length ? Math.max(...vals.map(Math.abs)) : 1;
+  return entries.map(e=>{
+    const pct = e.val===null ? 0 : Math.min(100, Math.abs(e.val)/(max||1)*100);
+    return `<div class="bar-row">
+      <div class="bar-label" title="${e.name}">${e.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div>
+      <div class="bar-val">${e.val===null?"—":fmt(e.val)}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- overview ---------- */
+async function renderOverview(){
+  const el = document.getElementById("overviewStats");
+  el.innerHTML = `<div class="loading">Loading…</div>`;
+  const [qos, status, speed, conv, ref, fb, transPending] = await Promise.all([
+    fetchAll("qos_reports"), fetchAll("status_reports"), fetchAll("speed_reports"),
+    fetchAll("conversions"), fetchAll("referral_clicks"), fetchAll("tester_feedback"),
+    fetchAll("translations", q=>q.eq("status","pending"))
+  ]);
+  const netConv = conv.reduce((n,c)=>n + (c.to_isp?1:0) - (c.from_isp?1:0), 0);
+  const stats = [
+    { num: qos.length, lbl: "QoS ratings" },
+    { num: status.length, lbl: "Status reports" },
+    { num: speed.length, lbl: "Speed tests" },
+    { num: conv.length, lbl: "Switch/signup events" },
+    { num: (netConv>=0?"+":"")+netConv, lbl: "Net conversions" },
+    { num: ref.length, lbl: "Referral clicks" },
+    { num: fb.length, lbl: "Tester feedback" },
+    { num: transPending.length, lbl: "Translations pending review" },
+  ];
+  el.innerHTML = stats.map(s=>`<div class="stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join("");
+}
+
+/* ---------- provider analytics ---------- */
+async function renderProviderAnalytics(){
+  ["providerQos","providerReliability","providerSpeed","providerConversions"].forEach(id=>{
+    document.getElementById(id).innerHTML = `<div class="loading">Loading…</div>`;
+  });
+  const [qos, status, speed, conv] = await Promise.all([
+    fetchAll("qos_reports"), fetchAll("status_reports"), fetchAll("speed_reports"), fetchAll("conversions")
+  ]);
+
+  const qosByIsp = groupBy(qos, "isp");
+  const qosEntries = Object.entries(qosByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.stars)) }))
+    .sort((a,b)=>(b.val||0)-(a.val||0));
+  document.getElementById("providerQos").innerHTML = barsHtml(qosEntries, v=>v.toFixed(1)+"★");
+
+  const cutoff30 = Date.now() - 30*24*60*60*1000;
+  const statusByIsp = groupBy(status.filter(r=>new Date(r.created_at).getTime()>=cutoff30), "isp");
+  const relEntries = Object.entries(statusByIsp).map(([isp,rows])=>({
+    name: isp, val: rows.length ? (rows.filter(r=>r.status==="live").length/rows.length*100) : null
+  })).sort((a,b)=>(b.val||0)-(a.val||0));
+  document.getElementById("providerReliability").innerHTML = barsHtml(relEntries, v=>v.toFixed(0)+"%");
+
+  const speedByIsp = groupBy(speed, "isp");
+  const speedEntries = Object.entries(speedByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.download_mbps).filter(v=>v!=null)) }))
+    .sort((a,b)=>(b.val||0)-(a.val||0));
+  document.getElementById("providerSpeed").innerHTML = barsHtml(speedEntries, v=>v.toFixed(1)+" Mbps");
+
+  const convNet = {};
+  conv.forEach(c=>{
+    if(c.to_isp) convNet[c.to_isp] = (convNet[c.to_isp]||0) + 1;
+    if(c.from_isp) convNet[c.from_isp] = (convNet[c.from_isp]||0) - 1;
+  });
+  const convEntries = Object.entries(convNet).map(([isp,n])=>({ name: isp, val: n })).sort((a,b)=>b.val-a.val);
+  document.getElementById("providerConversions").innerHTML = barsHtml(convEntries, v=>(v>=0?"+":"")+v);
+}
+
+/* ---------- licensing ---------- */
+async function renderLicensing(){
+  const formEl = document.getElementById("licenseForm");
+  formEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field"><label>ISP name</label><input class="inline-input" id="licIsp"></div>
+      <div class="field"><label>Status</label>
+        <select class="status-edit" id="licStatus" style="width:100%;">
+          ${["prospect","contacted","trial","active","lapsed","declined"].map(s=>`<option value="${s}">${s}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field"><label>Contact name</label><input class="inline-input" id="licContactName"></div>
+      <div class="field"><label>Contact email</label><input class="inline-input" id="licContactEmail" type="email"></div>
+      <div class="field"><label>Monthly fee (USD)</label><input class="inline-input" id="licFee" type="number" step="0.01"></div>
+      <div class="field"><label>Renews at</label><input class="inline-input" id="licRenews" type="date"></div>
+    </div>
+    <div class="field"><label>Notes</label><input class="inline-input" id="licNotes"></div>
+    <button class="btn primary" style="width:auto;" id="licSaveBtn" type="button">Save</button>
+    <div class="msg" id="licMsg"></div>
+  `;
+  document.getElementById("licSaveBtn").addEventListener("click", saveLicense);
+  await refreshLicenseTable();
+}
+async function saveLicense(){
+  const isp = document.getElementById("licIsp").value.trim();
+  const msg = document.getElementById("licMsg");
+  if(!isp){ msg.className="msg error"; msg.textContent="ISP name is required."; return; }
+  const row = {
+    site: currentSite, isp,
+    status: document.getElementById("licStatus").value,
+    contact_name: document.getElementById("licContactName").value.trim() || null,
+    contact_email: document.getElementById("licContactEmail").value.trim() || null,
+    monthly_fee_usd: parseFloat(document.getElementById("licFee").value) || null,
+    renews_at: document.getElementById("licRenews").value || null,
+    notes: document.getElementById("licNotes").value.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supa.from("provider_licenses").upsert([row], { onConflict: "site,isp" });
+  if(error){ msg.className="msg error"; msg.textContent = error.message; return; }
+  msg.className="msg ok"; msg.textContent="Saved.";
+  await refreshLicenseTable();
+}
+async function refreshLicenseTable(){
+  const el = document.getElementById("licenseTable");
+  el.innerHTML = `<div class="loading">Loading…</div>`;
+  const { data, error } = await supa.from("provider_licenses").select("*").eq("site", currentSite).order("updated_at",{ascending:false});
+  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+  if(!data || !data.length){ el.innerHTML = `<div class="empty">No licensing records yet for this site.</div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>ISP</th><th>Status</th><th>Contact</th><th>Fee</th><th>Renews</th><th>Notes</th></tr></thead><tbody>
+    ${data.map(r=>`<tr>
+      <td>${r.isp}</td>
+      <td><span class="pill ${r.status}">${r.status}</span></td>
+      <td>${r.contact_name||""}${r.contact_email?` <span style="color:var(--muted);">(${r.contact_email})</span>`:""}</td>
+      <td>${r.monthly_fee_usd!=null ? "$"+Number(r.monthly_fee_usd).toFixed(2) : "—"}</td>
+      <td>${r.renews_at||"—"}</td>
+      <td style="max-width:220px;">${r.notes||""}</td>
+    </tr>`).join("")}
+  </tbody></table>`;
+}
+
+/* ---------- full benchmark reports ---------- */
+async function renderReportPicker(){
+  const el = document.getElementById("reportPicker");
+  el.innerHTML = `<div class="loading">Loading provider list…</div>`;
+  const qos = await fetchAll("qos_reports");
+  const isps = [...new Set(qos.map(r=>r.isp))].sort();
+  if(!isps.length){ el.innerHTML = `<div class="empty">No ratings recorded yet for this site — nothing to report on.</div>`; return; }
+  el.innerHTML = isps.map(isp=>`<button class="btn" style="margin:0 6px 6px 0;" onclick="openFullReport(${JSON.stringify(isp)})">${isp}</button>`).join("");
+}
+async function openFullReport(isp){
+  const [qos, status, speed, conv, ref] = await Promise.all([
+    fetchAll("qos_reports", q=>q.eq("isp", isp)),
+    fetchAll("status_reports", q=>q.eq("isp", isp)),
+    fetchAll("speed_reports", q=>q.eq("isp", isp)),
+    fetchAll("conversions"),
+    fetchAll("referral_clicks", q=>q.eq("isp", isp)),
+  ]);
+  const qosAvg = avg(qos.map(r=>r.stars));
+  const cutoff30 = Date.now() - 30*24*60*60*1000;
+  const recentStatus = status.filter(r=>new Date(r.created_at).getTime()>=cutoff30);
+  const reliability = recentStatus.length ? (recentStatus.filter(r=>r.status==="live").length/recentStatus.length*100) : null;
+  const downAvg = avg(speed.map(r=>r.download_mbps).filter(v=>v!=null));
+  const gained = conv.filter(c=>c.to_isp===isp).length;
+  const lost = conv.filter(c=>c.from_isp===isp).length;
+
+  // Weekly trend (last 12 weeks) of QoS average, for the "historical trend charts" the CTA promises.
+  const weeks = [];
+  for(let i=11;i>=0;i--){
+    const end = Date.now() - i*7*24*60*60*1000;
+    const start = end - 7*24*60*60*1000;
+    const inWeek = qos.filter(r=>{ const t = new Date(r.created_at).getTime(); return t>=start && t<end; });
+    weeks.push({ label: new Date(start).toLocaleDateString(undefined,{month:"short",day:"numeric"}), val: avg(inWeek.map(r=>r.stars)) });
+  }
+  const trendHtml = weeks.map(w=>{
+    const h = w.val===null ? 2 : Math.max(2, (w.val/5)*60);
+    return `<div style="display:inline-block;width:22px;text-align:center;margin-right:4px;">
+      <div style="height:60px;display:flex;align-items:flex-end;"><div style="width:100%;height:${h}px;background:#4fd1c5;border-radius:2px 2px 0 0;"></div></div>
+      <div style="font-size:8px;color:#888;margin-top:2px;">${w.label}</div>
+    </div>`;
+  }).join("");
+
+  // Best-effort complaint-cluster keyword tally from free-text comments across all report types.
+  const STOPWORDS = new Set(["the","and","for","that","with","this","have","not","are","was","but","just","very","from","its","been","has","had","when","where","also","they","them","then","than","what","you","your","our"]);
+  const comments = [...qos, ...status, ...speed].map(r=>r.comment).filter(Boolean);
+  const wordCounts = {};
+  comments.forEach(c=>{
+    String(c).toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).forEach(w=>{
+      if(w.length>3 && !STOPWORDS.has(w)) wordCounts[w] = (wordCounts[w]||0)+1;
+    });
+  });
+  const topWords = Object.entries(wordCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Full Benchmarking Report — ${isp}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;max-width:820px;margin:40px auto;color:#1a1a1a;line-height:1.55;padding:0 16px;}
+    h1{font-size:26px;margin-bottom:4px;} h2{font-size:18px;margin-top:32px;border-bottom:2px solid #222;padding-bottom:4px;}
+    .cover-sub{color:#555;margin-bottom:24px;} .stat-grid{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0;}
+    .stat-card{border:1px solid #ccc;border-radius:8px;padding:12px 16px;min-width:140px;}
+    .stat-num{font-size:22px;font-weight:700;} .stat-lbl{font-size:12px;color:#666;}
+    table{width:100%;border-collapse:collapse;margin-top:12px;} td,th{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left;}
+    .badge{display:inline-block;background:#eee;border-radius:12px;padding:3px 10px;font-size:12px;margin:2px;}
+    .confidential{font-size:11px;color:#a00;border:1px solid #a00;border-radius:6px;padding:6px 10px;display:inline-block;margin-bottom:16px;}
+    @media print{ .no-print{display:none;} }
+  </style></head><body>
+    <button class="no-print" onclick="window.print()" style="float:right;">🖨️ Print / Save as PDF</button>
+    <div class="confidential">CONFIDENTIAL — licensed report, not for redistribution</div>
+    <h1>Independent ISP Benchmarking Report — Full Edition</h1>
+    <div class="cover-sub">Prepared for <strong>${isp}</strong> — generated ${new Date().toLocaleDateString()} from live, crowdsourced data on the Matokipedo tracker (site: ${currentSite})</div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num">${qosAvg!==null?qosAvg.toFixed(1)+"★":"—"}</div><div class="stat-lbl">Avg QoS (${qos.length} ratings)</div></div>
+      <div class="stat-card"><div class="stat-num">${reliability!==null?reliability.toFixed(0)+"%":"—"}</div><div class="stat-lbl">Reported "live" (30d, n=${recentStatus.length})</div></div>
+      <div class="stat-card"><div class="stat-num">${downAvg!==null?downAvg.toFixed(1)+" Mbps":"—"}</div><div class="stat-lbl">Avg download (${speed.length} tests)</div></div>
+      <div class="stat-card"><div class="stat-num">${(gained-lost)>=0?"+":""}${gained-lost}</div><div class="stat-lbl">Net switches (${gained} gained / ${lost} lost)</div></div>
+      <div class="stat-card"><div class="stat-num">${ref.length}</div><div class="stat-lbl">Referral link clicks</div></div>
+    </div>
+
+    <h2>12-week QoS rating trend</h2>
+    <div>${trendHtml}</div>
+
+    <h2>Emerging complaint / topic clusters (keyword tally, all report types)</h2>
+    ${topWords.length ? topWords.map(([w,n])=>`<span class="badge">${w} · ${n}</span>`).join(" ") : "<p>Not enough free-text comments yet to cluster.</p>"}
+
+    <h2>Raw anonymized comments (${comments.length})</h2>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Comment</th></tr></thead><tbody>
+    ${[...qos.map(r=>({...r,_type:"QoS rating"})), ...status.map(r=>({...r,_type:"Status report"})), ...speed.map(r=>({...r,_type:"Speed test"}))]
+      .filter(r=>r.comment).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,200)
+      .map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString()}</td><td>${r._type}</td><td>${(r.comment||"").replace(/</g,"&lt;")}</td></tr>`).join("")}
+    </tbody></table>
+    <p style="font-size:11px;color:#888;">No commenter identity, city precision beyond what was voluntarily submitted, or device fingerprinting is included — consistent with the public site's privacy design.</p>
+  </body></html>`;
+
+  const win = window.open("", "_blank");
+  if(!win){ alert("Please allow pop-ups to view the report."); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+}
+
+/* ---------- moderation ---------- */
+let modTable = "qos_reports";
+async function renderModeration(){
+  const selEl = document.getElementById("moderationTableSelect");
+  selEl.innerHTML = `<select class="status-edit" id="modTableSelect">
+    ${REPORT_TABLES.map(t=>`<option value="${t}" ${t===modTable?"selected":""}>${t}</option>`).join("")}
+  </select>`;
+  document.getElementById("modTableSelect").addEventListener("change", e=>{ modTable = e.target.value; refreshModerationTable(); });
+  await refreshModerationTable();
+}
+async function refreshModerationTable(){
+  const el = document.getElementById("moderationTable");
+  el.innerHTML = `<div class="loading">Loading…</div>`;
+  const { data, error } = await supa.from(modTable).select("*").eq("site", currentSite).order("created_at",{ascending:false}).limit(200);
+  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+  if(!data || !data.length){ el.innerHTML = `<div class="empty">Nothing recorded yet.</div>`; return; }
+  const cols = Object.keys(data[0]).filter(c=>!["site"].includes(c));
+  el.innerHTML = `<div style="overflow-x:auto;"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>
+    ${data.map(row=>`<tr>${cols.map(c=>`<td>${row[c]===null||row[c]===undefined?"":String(row[c]).slice(0,140)}</td>`).join("")}
+      <td><button class="btn danger" onclick="deleteModRow(${JSON.stringify(row.id)})">Delete</button></td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+async function deleteModRow(id){
+  if(!confirm("Delete this row permanently?")) return;
+  const { error } = await supa.from(modTable).delete().eq("id", id);
+  if(error){ alert(error.message); return; }
+  await refreshModerationTable();
+}
+
+/* ---------- translations ---------- */
+async function renderTranslations(){
+  const el = document.getElementById("translationQueue");
+  el.innerHTML = `<div class="loading">Loading…</div>`;
+  const { data, error } = await supa.from("translations").select("*").eq("site", currentSite).order("created_at",{ascending:false});
+  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+  if(!data || !data.length){ el.innerHTML = `<div class="empty">No translation suggestions submitted yet for this site.</div>`; return; }
+  const byLang = groupBy(data, "lang");
+  el.innerHTML = Object.entries(byLang).map(([lang, rows])=>`
+    <div class="lang-group">
+      <h3>${lang} <span style="color:var(--muted);font-weight:400;">(${rows.length})</span></h3>
+      <table><thead><tr><th>Key</th><th>Suggestion</th><th>Note</th><th>Status</th><th>Endorsements</th><th></th></tr></thead><tbody>
+      ${rows.map(r=>`<tr>
+        <td>${r.string_key}</td>
+        <td>${(r.suggested_text||"").replace(/</g,"&lt;")}</td>
+        <td>${r.source_note||""}</td>
+        <td><span class="pill ${r.status==='approved'?'active':'prospect'}">${r.status}</span></td>
+        <td>${r.endorsements||0}</td>
+        <td class="btn-row">
+          ${r.status!=="approved" ? `<button class="btn" onclick="approveTranslation(${JSON.stringify(r.id)})">Approve</button>` : ""}
+          <button class="btn danger" onclick="rejectTranslation(${JSON.stringify(r.id)})">Reject</button>
+        </td>
+      </tr>`).join("")}
+      </tbody></table>
+    </div>`).join("");
+}
+async function approveTranslation(id){
+  const { error } = await supa.from("translations").update({ status: "approved" }).eq("id", id);
+  if(error){ alert(error.message); return; }
+  await renderTranslations();
+}
+async function rejectTranslation(id){
+  if(!confirm("Reject and delete this suggestion?")) return;
+  const { error } = await supa.from("translations").delete().eq("id", id);
+  if(error){ alert(error.message); return; }
+  await renderTranslations();
+}
+
+/* ---------- export ---------- */
+function renderExportControls(){
+  const el = document.getElementById("exportControls");
+  el.innerHTML = `<select class="status-edit" id="exportTableSelect">
+      ${REPORT_TABLES.concat(["provider_licenses"]).map(t=>`<option value="${t}">${t}</option>`).join("")}
+    </select>
+    <button class="btn primary" style="width:auto;margin-left:8px;" id="exportBtn" type="button">Download CSV</button>
+    <div class="msg" id="exportMsg"></div>`;
+  document.getElementById("exportBtn").addEventListener("click", doExport);
+}
+async function doExport(){
+  const table = document.getElementById("exportTableSelect").value;
+  const msg = document.getElementById("exportMsg");
+  msg.textContent = "Preparing…";
+  let q = supa.from(table).select("*").order("created_at",{ascending:false}).limit(10000);
+  if(table !== "provider_licenses" || true) q = q.eq("site", currentSite);
+  const { data, error } = await q;
+  if(error){ msg.className="msg error"; msg.textContent = error.message; return; }
+  if(!data || !data.length){ msg.className="msg"; msg.textContent = "No rows to export."; return; }
+  const cols = Object.keys(data[0]);
+  const csv = [cols.join(",")].concat(
+    data.map(row=>cols.map(c=>{
+      const v = row[c]===null||row[c]===undefined ? "" : String(row[c]);
+      return '"' + v.replace(/"/g,'""') + '"';
+    }).join(","))
+  ).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${table}_${currentSite}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  msg.className="msg ok"; msg.textContent = `Exported ${data.length} rows.`;
+}
+
+/* ---------- boot ---------- */
+tryRestoreSession();
+</script>
+</body>
+</html>
