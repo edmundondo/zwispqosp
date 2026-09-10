@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.3.0">
+<meta name="app-version" content="0.3.1">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -102,6 +102,12 @@
   .missing-lang-note{font-size:11.5px;color:var(--yellow);background:rgba(232,185,63,.1);border:1px solid rgba(232,185,63,.3);border-radius:8px;padding:8px 10px;margin-bottom:14px;}
 
   footer{max-width:1080px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:11px;}
+  /* Matokipedo brand footer — copied from zwispqosd for cross-app consistency (v0.3.1). */
+  .matokipedo-footer{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:20px;border-top:1px solid var(--border);text-align:center;}
+  .matokipedo-brand{display:flex;align-items:center;gap:10px;}
+  .matokipedo-logo{height:36px;width:auto;border-radius:6px;}
+  .matokipedo-tagline{font-size:12px;color:var(--muted);}
+  .matokipedo-footer .admin-line{font-size:11px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -268,7 +274,14 @@
     </div>
   </main>
 
-  <footer>Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file. · v0.3.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></footer>
+  <footer class="matokipedo-footer">
+    <div class="matokipedo-brand">
+      <img src="matokipedo-logo.jpg" alt="Matokipedo logo" class="matokipedo-logo">
+      <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
+    </div>
+    <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+  </footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -7,6 +7,21 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.3.1] — 2026-09-10
+
+### Changed
+- **Footer now matches `zwispqosd`'s branding** — copied the Matokipedo logo + "Live
+  infrastructure monitoring by Matokipedo" tagline treatment over verbatim (same markup, same
+  `.matokipedo-footer`/`.matokipedo-brand`/`.matokipedo-logo`/`.matokipedo-tagline` CSS classes),
+  with this app's own admin-specific line kept underneath. Added `matokipedo-logo.jpg` to this
+  repo (copied from `zwispqosd`, verified with `file` — genuine JPEG, not the HEIC-mislabeled
+  trap noted in the maintenance skill) since it wasn't here before.
+
+### Notes
+- This is now a third piece of brand/data duplicated by hand across the two repos, alongside
+  `PROVIDER_DIRECTORY` (v0.3.0). Keep the logo and footer markup in sync if either changes on the
+  public demo.
+
 ## [0.3.0] — 2026-09-10
 
 ### Added
