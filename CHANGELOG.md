@@ -7,6 +7,36 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.3.3] — 2026-09-10
+
+### Fixed
+- **Bug audit, triggered by the Botswana/South Africa language rollout**: the Translations
+  panel's "still-missing languages" note was a single hardcoded, Zimbabwe-only sentence — wrong
+  for Botswana and South Africa (which have their own, different, blank-language lists as of
+  bwispqosd/saispqosd v1.1.0), and *also factually wrong for Zimbabwe itself*: it listed TjiKalanga
+  and Tonga as still needing translation, but both already carry full draft content in
+  `zwispqosd`'s `I18N` object (confirmed by loading and inspecting the object directly, not by
+  trusting the old note). Replaced with a `MISSING_LANGS` map per site, checked against each
+  demo's actual `I18N` content, and a `renderMissingLangNote()` function that renders the correct
+  note for whichever site is selected. Zimbabwe's real list is four languages (Chibarwe,
+  Khoisan/Tjwao, Nambya, Ndau), not six.
+- Removed a dead, always-true conditional in the raw CSV export (`if(table !== "provider_licenses"
+  || true) ...`) that made it look like `provider_licenses` might skip the site filter — it never
+  did (the `|| true` made the condition unconditionally true), but the code was confusing and
+  looked like a bug. Now just always scopes by `site`, matching the actual (and correct) behavior.
+- Corrected two stale claims in SETUP.md: "Overview — cross-site totals" and "Moderation — across
+  all sites at once" both overstated what the app does — every panel is scoped to the selected
+  site via `currentSite`, not aggregated across sites. Also updated the stale "PROVIDER_DIRECTORY,
+  zw only so far" note now that all three sites are populated.
+
+### Notes
+- This was a routine audit-for-parity pass across `zwispqosp`/`bwispqosp`/`saispqosp` (prompted by
+  "audit for bugs, functionality then update bwispqosp/saispqosp to match zwispqosp") — the three
+  admin app copies were already byte-identical in their JS/HTML aside from title/version/
+  `currentSite` default before this fix, and stay that way after it. No functional drift was found
+  between the three copies; the bugs found here were pre-existing in the shared template and are
+  now fixed in all three at once.
+
 ## [0.3.2] — 2026-09-10
 
 ### Added

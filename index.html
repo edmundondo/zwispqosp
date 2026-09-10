@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.3.2">
+<meta name="app-version" content="0.3.3">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -238,12 +238,7 @@
     <div class="panel" id="panel-translations">
       <div class="card">
         <h2>Translation review queue</h2>
-        <div class="missing-lang-note">
-          Six languages are still greyed out on the Lite pages because nobody has a trustworthy translation yet:
-          TjiKalanga, Chibarwe, Khoisan (Tjwao), Nambya, Ndau, Tonga. Community-suggested strings for those (and
-          any other language) land here — approve once you're confident, then hand the approved set to whoever
-          next regenerates the Lite pages.
-        </div>
+        <div class="missing-lang-note" id="missingLangNote"></div>
         <div id="translationQueue"></div>
       </div>
     </div>
@@ -280,7 +275,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.2 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.3 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -322,6 +317,15 @@ if(supa){
 
 const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
 const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)" };
+
+/* ---------- known-blank languages, per site (audited against each demo's own I18N content
+   2026-09-10 — this used to be a single hardcoded, Zimbabwe-only, and actually-wrong sentence
+   in the Translations panel; kept here so it stays in sync as each site's I18N blocks fill in) */
+const MISSING_LANGS = {
+  zw: ["Chibarwe", "Khoisan (Tjwao)", "Nambya", "Ndau"],
+  bw: ["Kgalagadi", "Mbukushu", "Tshwa", "!Xóõ"],
+  za: ["Afrikaans", "isiZulu", "Sepedi", "siSwati", "isiNdebele"]
+};
 
 /* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
    Providers are still hardcoded per-site (see SETUP.md "What's deliberately NOT in this v1") —
@@ -848,7 +852,22 @@ async function deleteModRow(id){
 }
 
 /* ---------- translations ---------- */
+function renderMissingLangNote(){
+  const noteEl = document.getElementById("missingLangNote");
+  const missing = MISSING_LANGS[currentSite] || [];
+  if(!missing.length){
+    noteEl.style.display = "none";
+    noteEl.innerHTML = "";
+    return;
+  }
+  noteEl.style.display = "";
+  noteEl.innerHTML = `${missing.length} language${missing.length===1?" is":"s are"} still greyed out on the
+    ${SITE_LABELS[currentSite]||currentSite} Lite pages because nobody has a trustworthy translation yet:
+    ${missing.join(", ")}. Community-suggested strings for those (and any other language) land here —
+    approve once you're confident, then hand the approved set to whoever next regenerates the Lite pages.`;
+}
 async function renderTranslations(){
+  renderMissingLangNote();
   const el = document.getElementById("translationQueue");
   el.innerHTML = `<div class="loading">Loading…</div>`;
   const { data, error } = await supa.from("translations").select("*").eq("site", currentSite).order("created_at",{ascending:false});
@@ -1189,8 +1208,9 @@ async function doExport(){
   const table = document.getElementById("exportTableSelect").value;
   const msg = document.getElementById("exportMsg");
   msg.textContent = "Preparing…";
-  let q = supa.from(table).select("*").order("created_at",{ascending:false}).limit(10000);
-  if(table !== "provider_licenses" || true) q = q.eq("site", currentSite);
+  // provider_licenses also carries a site column (see saveLicense) so every table in the
+  // dropdown is scoped to the selected site, no exception.
+  let q = supa.from(table).select("*").order("created_at",{ascending:false}).limit(10000).eq("site", currentSite);
   const { data, error } = await q;
   if(error){ msg.className="msg error"; msg.textContent = error.message; return; }
   if(!data || !data.length){ msg.className="msg"; msg.textContent = "No rows to export."; return; }

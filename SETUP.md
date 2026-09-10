@@ -110,9 +110,11 @@ repos (Netlify/Vercel/Cloudflare Pages all support that on their free tiers), or
 
 ## What it does
 
-- **Overview** — cross-site totals (ratings, status reports, speed tests, conversions, referral
-  clicks, tester feedback, pending translations), reading full history, not the public site's
-  client-side 1000-row cache.
+- **Overview** — full-history totals for the site selected in the dropdown (ratings, status
+  reports, speed tests, conversions, referral clicks, tester feedback, pending translations), not
+  the public site's client-side 1000-row cache. Every panel in this app is scoped to whichever
+  site is selected, not aggregated across sites — switch the selector to see another country's
+  numbers.
 - **Provider analytics** — QoS average, 30-day status reliability, average download speed, and
   net conversions per provider, computed live.
 - **ISP licensing** — a small CRM: track each ISP as prospect → contacted → trial → active →
@@ -122,12 +124,16 @@ repos (Netlify/Vercel/Cloudflare Pages all support that on their free tiers), or
   teaser's CTA promises and the free version withholds: a 12-week trend chart, a best-effort
   keyword tally across comments (a rough stand-in for "complaint clustering" — good enough to spot
   a pattern, not a real NLP pipeline), and the raw anonymized comments themselves.
-- **Moderation** — browse and delete recent rows in any of the report tables, across all sites at
-  once if you want.
+- **Moderation** — browse and delete recent rows in any of the report tables, for the site
+  currently selected (switch sites to moderate another country's submissions).
 - **Translations** — every crowd-submitted translation suggestion, grouped by language, with
-  approve/reject. This is also where the six still-missing Lite-page languages (TjiKalanga,
-  Chibarwe, Khoisan/Tjwao, Nambya, Ndau, Tonga) would surface once someone submits something for
-  them — the CHANGELOG in `zwispqosd` flagged those as skipped rather than guessed at.
+  approve/reject. The panel also shows a site-specific note (`MISSING_LANGS` in `index.html`,
+  audited 2026-09-10 against each demo's actual `I18N` content, not assumed) listing that site's
+  still-blank languages: Chibarwe, Khoisan/Tjwao, Nambya and Ndau for Zimbabwe (only four — an
+  earlier version of this note wrongly also listed TjiKalanga and Tonga, which both already have
+  full draft content); Kgalagadi, Mbukushu, Tshwa and !Xóõ for Botswana; Afrikaans, isiZulu,
+  Sepedi, siSwati and isiNdebele for South Africa. Keep `MISSING_LANGS` in sync with each demo's
+  `I18N` object as languages get filled in — don't guess, check the actual object.
 - **Export** — two tiers: "Formatted reports" (moved here from the public demo in v0.3.0 — Export
   PDF Report, Export ISP CSV, Export QoS/Status/Speed CSV, Export EPUB, all built from full
   Supabase history for the selected site) and "Raw CSV export" (any table, as-is, filtered to the
@@ -137,9 +143,10 @@ repos (Netlify/Vercel/Cloudflare Pages all support that on their free tiers), or
 
 - **Providers are still hardcoded** in `index.html`'s `const DATA = [...]` array on the public
   sites, not database-driven. As of v0.3.0 this file also carries its own copy
-  (`PROVIDER_DIRECTORY`, `zw` only so far) so the moved-here ISP CSV/EPUB/PDF exports have names,
-  subscriber counts, and sourcing to report against — meaning it now has to be kept in sync by
-  hand across two files. Making the provider list itself editable from here (and database-driven
+  (`PROVIDER_DIRECTORY`, populated for all three sites — `zw`, `bw`, `za` — as of 2026-09-10) so
+  the moved-here ISP CSV/EPUB/PDF exports have names, subscriber counts, and sourcing to report
+  against — meaning it now has to be kept in sync by hand across four files (this one plus each
+  public demo's own `DATA` array). Making the provider list itself editable from here (and database-driven
   everywhere) would mean also changing the public site to fetch from a `providers` table instead
   of its hardcoded array — a real, separate, more invasive change to a production file. I didn't
   make that call unilaterally; say the word and I'll design and build that migration path as its
