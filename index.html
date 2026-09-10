@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.3.1">
+<meta name="app-version" content="0.3.2">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -254,7 +254,7 @@
         <div class="hint">
           Moved here from the public demo in v0.3.0 — these read the selected site's full Supabase
           history, not the demo's capped 1000-row client cache. Needs a provider directory wired
-          up for the selected site (currently: Zimbabwe only — see PROVIDER_DIRECTORY in the code).
+          up for the selected site — Zimbabwe, Botswana and South Africa all have one now (see PROVIDER_DIRECTORY in the code).
         </div>
         <div class="btn-row">
           <button class="btn" id="exportPdfReportBtn" type="button">🖨️ Export PDF Report</button>
@@ -280,7 +280,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.2 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -325,11 +325,10 @@ const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Afric
 
 /* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
    Providers are still hardcoded per-site (see SETUP.md "What's deliberately NOT in this v1") —
-   this is the same `const DATA` array zwispqosd's public page ships, duplicated here because
-   Supabase itself only has the report tables (qos_reports, status_reports, ...), not a
-   `providers` table with names/type/subscriber counts/sourcing. Keep this in sync with
-   zwispqosd/index.html's DATA array by hand until that becomes a real shared table — bw/za
-   are empty until those sites get their own demo/backend split. */
+   these are the same `const DATA` arrays each site's own public demo ships (zwispqosd, bwispqosd,
+   saispqosd), duplicated here because Supabase itself only has the report tables (qos_reports,
+   status_reports, ...), not a `providers` table with names/type/subscriber counts/sourcing. Keep
+   this in sync with each demo's DATA array by hand until that becomes a real shared table. */
 const PROVIDER_DIRECTORY = {
   zw: [
     { name: "Econet Wireless", type: "Mobile", subscribers: 11332804, subLabel: "active mobile subscribers",
@@ -363,8 +362,55 @@ const PROVIDER_DIRECTORY = {
       note: "Smaller licensed IAPs serving regional, corporate and institutional customers. Grouped here as niche players with no individually disclosed subscriber data.",
       source: "POTRAZ IAP licence list, 2024" }
   ],
-  bw: [],
-  za: []
+  bw: [
+    { name: "Orange Botswana", type: "Mobile", subscribers: null, subLabel: "43% of mobile subscriptions (BOCRA-published share)",
+      note: "Botswana's largest mobile operator by subscriber share as of March 2024 — the first time Orange has led the market since launch. Majority-owned (69%) by Orange S.A. (France), with the remainder held by a local investor consortium.",
+      source: "BOCRA 2024 Annual Report (period to March 2024)" },
+    { name: "Mascom Wireless", type: "Mobile", subscribers: null, subLabel: "42% of mobile subscriptions (BOCRA-published share)",
+      note: "Botswana's second-largest mobile operator by subscriber share as of March 2024. Owned 60% by the Botswana Public Officers Pensions Fund and 40% by Econet Wireless. Was the first operator to launch 5G in Botswana (Gaborone, February 2022).",
+      source: "BOCRA 2024 Annual Report (period to March 2024)" },
+    { name: "BTC Mobile (BeMobile)", type: "Mobile", subscribers: 757529, subLabel: "active mobile subscribers (company-reported, FY2026)",
+      note: "State-linked operator (majority government-owned via the BSE-listed Botswana Telecommunications Corporation) held 15% of the mobile subscriber market per BOCRA as of March 2024. Its own FY2026 results separately reported 757,529 active mobile subscribers, up 30% year-on-year — a later reporting period than the BOCRA share figure, so the two numbers aren't directly comparable.",
+      source: "BOCRA 2024 Annual Report; BTC FY2026 results via BW TechZone (Aug 2026)" },
+    { name: "Starlink", type: "Fixed/Wireless", subscribers: 8075, subLabel: "satellite broadband customers",
+      note: "Satellite internet service, commercially launched in Botswana in August 2024 after BOCRA licensing. Reported at roughly 8,075 customers (about 3.9% of fixed broadband connections) as of BOCRA's most recent annual report, via press reporting — not independently verified against the primary BOCRA table.",
+      source: "BOCRA Annual Report data, via BW TechZone (2026)" },
+    { name: "Independent ISPs", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "BOCRA licenses a number of smaller independent ISPs beyond the operators above. No combined subscriber or market-share figure for this group is published. BoFiNet, Botswana's wholesale national fibre backbone operator, isn't listed separately here as it has no retail subscribers of its own.",
+      source: "BOCRA List of Internet Service Providers" }
+  ],
+  za: [
+    { name: "Vodacom", type: "Mobile", subscribers: 45951000, subLabel: "South Africa customers (FY2025, year to Mar 2025)",
+      note: "South Africa's largest mobile network by customer base. The South Africa-specific subscriber count (not the wider Vodacom Group figure) fell 11% year-on-year in FY2025, driven mainly by a decline in prepaid customers.",
+      source: "Vodacom Group FY2025 results, via MyBroadband (19 May 2025)" },
+    { name: "MTN South Africa", type: "Mobile", subscribers: 39200000, subLabel: "total subscribers (as of 31 Mar 2025)",
+      note: "4.4 million postpaid and 29.1 million prepaid customers as of 31 March 2025, up 5.6% year-on-year.",
+      source: "MTN Group results, via MyBroadband (12 May 2025)" },
+    { name: "Telkom Mobile", type: "Mobile", subscribers: 24500000, subLabel: "total mobile subscribers (as of 30 Sep 2025)",
+      note: "21.6 million of the total are prepaid. Telkom is a converged fixed-and-mobile operator; its Openserve fibre business is tracked as a separate entry below.",
+      source: "Telkom interim results, H1 FY2026, via MyBroadband (30 Jan 2026)" },
+    { name: "Cell C", type: "Mobile", subscribers: 8600000, subLabel: "total subscribers (6 months to 30 Nov 2025)",
+      note: "5.1 million of the total are hosted MVNO subscribers (including Capitec Connect); the rest are own-brand. Cell C runs an asset-light model with no towers of its own, roaming on Vodacom and MTN infrastructure.",
+      source: "Cell C interim results, via ConnectingAfrica (13 Feb 2026)" },
+    { name: "rain", type: "Mobile", subscribers: null, subLabel: "no current public subscriber count",
+      note: "Data-only 4G/5G network, expanding into voice and SMS under the rainOne brand. rain has not disclosed a current subscriber count; the last public estimate was roughly 1 million in late 2022.",
+      source: "MyBroadband market-share analysis (30 Dec 2023) — data gap, no newer figure found" },
+    { name: "Openserve", type: "Fixed/Wireless", subscribers: 786490, subLabel: "fibre homes connected (of 1,501,406 passed)",
+      note: "Telkom's wholesale, open-access fibre network — a 52.4% take-up rate, the highest of the major fibre networks. Wholesale-only: sold through retail ISPs, not directly to consumers.",
+      source: "Telkom trading statement, via TechFinancials (16 Feb 2026)" },
+    { name: "Vumatel", type: "Fixed/Wireless", subscribers: 864208, subLabel: "fibre homes connected (of 2,040,231 passed)",
+      note: "South Africa's largest fibre network by homes passed. Now consolidated with Dark Fibre Africa under Maziv (part of CIVH); Vodacom holds a 30% stake in Maziv, approved by the Competition Appeal Court in July 2025.",
+      source: "Industry fibre roundup, via MyBroadband (17 Feb 2026)" },
+    { name: "Herotel", type: "Fixed/Wireless", subscribers: 273289, subLabel: "fibre + fixed-wireless homes connected (of 606,388 passed)",
+      note: "Fibre and fixed-wireless ISP focused on smaller towns and rural areas underserved by the larger networks.",
+      source: "Industry fibre roundup, via MyBroadband (17 Feb 2026)" },
+    { name: "MetroFibre Networx", type: "Fixed/Wireless", subscribers: 175000, subLabel: "fibre homes connected (of ~515,000 passed)",
+      note: "Open-access metro fibre network operator.",
+      source: "Industry fibre roundup, via MyBroadband (17 Feb 2026)" },
+    { name: "Frogfoot Networks", type: "Fixed/Wireless", subscribers: 187000, subLabel: "fibre homes connected (of ~446,000 passed)",
+      note: "Open-access fibre network operator.",
+      source: "Industry fibre roundup, via MyBroadband (17 Feb 2026)" }
+  ]
 };
 const DAY_MS = 24*60*60*1000;
 

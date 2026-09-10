@@ -7,6 +7,28 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.3.2] — 2026-09-10
+
+### Added
+- **`PROVIDER_DIRECTORY.bw` and `.za` populated** — Botswana (Orange Botswana, Mascom
+  Wireless, BTC Mobile/BeMobile, Starlink, Independent ISPs) sourced from BOCRA's 2024
+  Annual Report and operators' own results; South Africa (Vodacom, MTN South Africa,
+  Telkom Mobile, Cell C, rain, Openserve, Vumatel, Herotel, MetroFibre Networx,
+  Frogfoot Networks) sourced from ICASA's State of the ICT Sector Report and each
+  company's own investor/trading results. Both sites' formatted exports (PDF/CSV/EPUB)
+  now work here the same way Zimbabwe's already did — no code changes needed beyond
+  the data itself.
+- Two new sibling deployments of this same admin app now exist: **bwispqosp**
+  (`currentSite` defaults to `"bw"`) and **saispqosp** (defaults to `"za"`) — see the
+  `qos` skill's replication template. All three copies share one Supabase project
+  and stay in sync by hand, same as `PROVIDER_DIRECTORY` always has.
+
+### Notes
+- The public demo counterparts are **bwispqosd** and **saispqosd** (siblings of
+  zwispqosd), both English-only v1 releases with no export options, no Cloudflare
+  Radar national benchmark, and empty `ISP_ASN`/`PHONE_ISP_PREFIXES` — see each
+  repo's own README/CHANGELOG for the full list of deliberate scope cuts.
+
 ## [0.3.1] — 2026-09-10
 
 ### Changed
