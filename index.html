@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.2.0">
+<meta name="app-version" content="0.3.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -244,17 +244,37 @@
 
     <div class="panel" id="panel-export">
       <div class="card">
-        <h2>CSV export</h2>
-        <div class="hint">Exports the selected site's full history for the chosen table.</div>
+        <h2>Formatted reports</h2>
+        <div class="hint">
+          Moved here from the public demo in v0.3.0 — these read the selected site's full Supabase
+          history, not the demo's capped 1000-row client cache. Needs a provider directory wired
+          up for the selected site (currently: Zimbabwe only — see PROVIDER_DIRECTORY in the code).
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="exportPdfReportBtn" type="button">🖨️ Export PDF Report</button>
+          <button class="btn" id="exportIspCsvBtn" type="button">📊 Export ISP CSV</button>
+          <button class="btn" id="exportQosCsvBtn" type="button">⭐ Export QoS CSV</button>
+          <button class="btn" id="exportStatusCsvBtn" type="button">🚦 Export Status CSV</button>
+          <button class="btn" id="exportSpeedCsvBtn" type="button">📶 Export Speed CSV</button>
+          <button class="btn" id="exportEpubBtn" type="button">📚 Export EPUB</button>
+        </div>
+        <div class="msg" id="formattedExportMsg"></div>
+      </div>
+      <div class="card">
+        <h2>Raw CSV export</h2>
+        <div class="hint">Exports the selected site's full history for the chosen table, as-is.</div>
         <div id="exportControls"></div>
       </div>
     </div>
   </main>
 
-  <footer>Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</footer>
+  <footer>Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file. · v0.3.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- JSZip — free, open-source (MIT), used client-side to build the EPUB export (moved here
+     from zwispqosd in v0.3.0, alongside the rest of the export options). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 /* =========================================================================
    Same project as zispqos / zwispqosd — public anon key only. Privilege
@@ -289,6 +309,51 @@ if(supa){
 
 const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
 const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)" };
+
+/* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
+   Providers are still hardcoded per-site (see SETUP.md "What's deliberately NOT in this v1") —
+   this is the same `const DATA` array zwispqosd's public page ships, duplicated here because
+   Supabase itself only has the report tables (qos_reports, status_reports, ...), not a
+   `providers` table with names/type/subscriber counts/sourcing. Keep this in sync with
+   zwispqosd/index.html's DATA array by hand until that becomes a real shared table — bw/za
+   are empty until those sites get their own demo/backend split. */
+const PROVIDER_DIRECTORY = {
+  zw: [
+    { name: "Econet Wireless", type: "Mobile", subscribers: 11332804, subLabel: "active mobile subscribers",
+      note: "Dominant mobile network operator. Holds ~73.75% of the mobile subscriber market and ~79% of mobile internet/data traffic as of Q4 2025. Subscriber base grew 8.5% in 2024.",
+      source: "POTRAZ Annual Sector Report 2024; Q4 2025 update" },
+    { name: "NetOne", type: "Mobile", subscribers: 4101492, subLabel: "active mobile subscribers",
+      note: "State-owned mobile operator. Grew from 4,062,894 to 4,101,492 subscribers in Q4 2025, driven by LTE/5G rural expansion — now covers 46.14% of rural base stations.",
+      source: "POTRAZ Q4 2025 Sector Performance Report" },
+    { name: "Starlink Zimbabwe", type: "Fixed/Wireless", subscribers: 67057, subLabel: "VSAT subscribers",
+      note: "Fastest-growing provider in the country. VSAT subscriptions up 31.7% quarter-on-quarter in Q4 2025 (126% average quarterly growth since Sept 2024 launch). Rapidly eating into fixed fibre traffic share.",
+      source: "POTRAZ Q4 2025 Sector Performance Report" },
+    { name: "Telecel Zimbabwe", type: "Mobile", subscribers: 381097, subLabel: "active mobile subscribers",
+      note: "Smallest of the three licensed mobile network operators, but grew subscribers 35.5% in 2024 — the fastest growth rate of any MNO that year.",
+      source: "POTRAZ Annual Sector Report 2024" },
+    { name: "Liquid (Liquid Home / ZOL)", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Largest fixed/fibre ISP by traffic share — held ~48.4% of fixed internet traffic in Q4 2025, down from 58.9% in Q3 as Starlink took share. POTRAZ does not publish per-company subscriber counts for fixed IAPs.",
+      source: "POTRAZ Q3/Q4 2025 traffic-share data" },
+    { name: "Dandemutande", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Second-largest fixed ISP by traffic share, gaining fast — up 4.47 percentage points to 17.71% of fixed internet traffic in Q4 2025.",
+      source: "POTRAZ Q4 2025 traffic-share data" },
+    { name: "TelOne", type: "Fixed/Wireless", subscribers: 298047, subLabel: "national fixed telephone lines (proxy)",
+      note: "State-owned fixed-line and DSL/fibre operator. National fixed telephone lines totalled 298,047 as of Q4 2024 (declining ~3.75% y/y as VoIP substitutes). Broadband subscriber count isn't disclosed separately.",
+      source: "POTRAZ Annual Sector Report 2024" },
+    { name: "Africom", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Licensed Internet Access Provider offering fibre and corporate connectivity. No individual subscriber or traffic-share figures published by POTRAZ.",
+      source: "POTRAZ IAP licence list, 2024" },
+    { name: "PowerTel", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Zesa-owned IAP, primarily provides backhaul capacity and some retail fixed/wireless connectivity. No individual subscriber figures published.",
+      source: "POTRAZ IAP licence list, 2024" },
+    { name: "Telecontract / Utande / ZARNet", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Smaller licensed IAPs serving regional, corporate and institutional customers. Grouped here as niche players with no individually disclosed subscriber data.",
+      source: "POTRAZ IAP licence list, 2024" }
+  ],
+  bw: [],
+  za: []
+};
+const DAY_MS = 24*60*60*1000;
 
 let currentSite = "zw";
 let currentUser = null;
@@ -761,7 +826,297 @@ async function rejectTranslation(id){
   await renderTranslations();
 }
 
-/* ---------- export ---------- */
+/* ---------- formatted exports (moved from zwispqosd in v0.3.0) ----------
+   Same six export options the public demo used to offer (Export PDF Report, Export ISP CSV,
+   Export QoS/Status/Speed CSV, Export EPUB), rebuilt here against Supabase's full history for
+   the selected site instead of the demo's client-side capped arrays. One simplification versus
+   the original: the public site's "down 24h+" styling is computed from a per-city unbroken
+   streak of "down" reports; here it's computed per-ISP across all cities (see latestStatusFor)
+   — close enough for a report a human reads, not worth fully replicating the demo's per-city
+   render-loop logic in an export button. */
+function relTimeShort(iso){
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms/60000);
+  if(mins < 1) return "just now";
+  if(mins < 60) return mins+"m ago";
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs+"h ago";
+  return Math.floor(hrs/24)+"d ago";
+}
+function aggregateQos(qosRows){
+  const byIsp = {};
+  qosRows.forEach(r=>{ (byIsp[r.isp] = byIsp[r.isp] || []).push(r.stars); });
+  const out = {};
+  Object.entries(byIsp).forEach(([isp, stars])=>{ out[isp] = { avg: avg(stars), count: stars.length }; });
+  return out;
+}
+const FORMATTED_STATUS_LABEL = { live:"Live", partial:"Partial", down:"Down", "down-long":"Down 24h+" };
+function latestStatusFor(isp, statusRows){
+  const rs = statusRows.filter(r=>r.isp===isp).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  if(!rs.length) return null;
+  const latest = rs[0];
+  if(latest.status !== "down") return { level: latest.status, at: latest.created_at };
+  let streakStart = latest.created_at;
+  for(const r of rs){ if(r.status === "down") streakStart = r.created_at; else break; }
+  const downForMs = Date.now() - new Date(streakStart).getTime();
+  return { level: downForMs >= DAY_MS ? "down-long" : "down", at: latest.created_at, downForMs };
+}
+function speedAvgFor(isp, speedRows){
+  const cutoff = Date.now() - DAY_MS;
+  const all = speedRows.filter(r=>r.isp===isp);
+  const recent = all.filter(r=>new Date(r.created_at).getTime()>=cutoff);
+  const pool = recent.length ? recent : all;
+  if(!pool.length) return null;
+  return {
+    downloadMbps: avg(pool.map(r=>r.download_mbps).filter(v=>v!=null)),
+    uploadMbps: avg(pool.map(r=>r.upload_mbps).filter(v=>v!=null)),
+    windowed: recent.length > 0
+  };
+}
+function rankedProviders(){
+  return (PROVIDER_DIRECTORY[currentSite] || []).slice().sort((a,b)=>{
+    if(a.subscribers===null && b.subscribers===null) return 0;
+    if(a.subscribers===null) return 1;
+    if(b.subscribers===null) return -1;
+    return b.subscribers - a.subscribers;
+  });
+}
+function requireProviderDirectory(){
+  if((PROVIDER_DIRECTORY[currentSite]||[]).length) return true;
+  const msg = document.getElementById("formattedExportMsg");
+  msg.className = "msg error";
+  msg.textContent = `No provider directory wired up yet for site "${currentSite}" — add its providers to PROVIDER_DIRECTORY in index.html.`;
+  return false;
+}
+function downloadCsv(header, rows, filename){
+  const csv = [header, ...rows].map(r=>r.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function escapeXml(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function xhtmlWrap(title, body){
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>${escapeXml(title)}</title><meta charset="utf-8"/>
+<style>body{font-family:serif;line-height:1.5;} h1{font-size:1.6em;} h2{font-size:1.3em;margin-top:1.4em;} small{color:#555;}</style>
+</head>
+<body>${body}</body>
+</html>`;
+}
+
+async function doExportIspCsv(){
+  if(!requireProviderDirectory()) return;
+  const [qosRows, statusRows] = await Promise.all([fetchAll("qos_reports"), fetchAll("status_reports")]);
+  const qosAgg = aggregateQos(qosRows);
+  const header = ["Rank","ISP","Type","Subscribers","Metric","Status","QoS Avg","QoS Reports","Note","Source"];
+  const rows = rankedProviders().map((d,i)=>{
+    const qos = qosAgg[d.name] || {avg:0,count:0};
+    const st = latestStatusFor(d.name, statusRows);
+    return [ d.subscribers!==null ? i+1 : "", d.name, d.type, d.subscribers!==null ? d.subscribers : "", d.subLabel,
+      st ? FORMATTED_STATUS_LABEL[st.level] : "No reports", qos.count ? qos.avg.toFixed(2) : "", qos.count,
+      d.note.replace(/"/g,"'"), d.source ];
+  });
+  downloadCsv(header, rows, `${currentSite}-isp-tracker_${new Date().toISOString().slice(0,10)}.csv`);
+}
+async function doExportQosCsv(){
+  const rows = await fetchAll("qos_reports");
+  const header = ["ISP","Stars","City","Comment","Reported"];
+  const out = rows.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(r=>[
+    r.isp, r.stars, r.city, (r.comment||"").replace(/"/g,"'"), r.created_at
+  ]);
+  downloadCsv(header, out, `${currentSite}-isp-qos-reports_${new Date().toISOString().slice(0,10)}.csv`);
+}
+async function doExportStatusCsv(){
+  const rows = await fetchAll("status_reports");
+  const header = ["ISP","City","Status","Comment","Reported"];
+  const out = rows.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(r=>[
+    r.isp, r.city, r.status, (r.comment||"").replace(/"/g,"'"), r.created_at
+  ]);
+  downloadCsv(header, out, `${currentSite}-isp-status-reports_${new Date().toISOString().slice(0,10)}.csv`);
+}
+async function doExportSpeedCsv(){
+  const rows = await fetchAll("speed_reports");
+  const header = ["ISP","City","Download Mbps","Upload Mbps","Method","Idle Ping ms","Download Ping ms","Upload Ping ms","Jitter Down ms","Jitter Up ms","Packet Loss %","Connection","Device","Comment","Reported"];
+  const out = rows.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(r=>[
+    r.isp, r.city, r.download_mbps, r.upload_mbps, r.test_method || "manual",
+    r.latency_idle_ms ?? "", r.latency_download_ms ?? "", r.latency_upload_ms ?? "",
+    r.jitter_download_ms ?? "", r.jitter_upload_ms ?? "", r.packet_loss_pct ?? "",
+    r.connection_type ?? "", r.device_type ?? "",
+    (r.comment||"").replace(/"/g,"'"), r.created_at
+  ]);
+  downloadCsv(header, out, `${currentSite}-isp-speed-reports_${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+async function buildEpubForSite(){
+  const [qosRows, statusRows, speedRows, convRows] = await Promise.all([
+    fetchAll("qos_reports"), fetchAll("status_reports"), fetchAll("speed_reports"), fetchAll("conversions")
+  ]);
+  const qosAgg = aggregateQos(qosRows);
+  const convAgg = { total: convRows.length, byIsp:{}, byReason:{} };
+  convRows.forEach(c=>{
+    if(c.to_isp) convAgg.byIsp[c.to_isp] = (convAgg.byIsp[c.to_isp]||0)+1;
+    (c.reasons||[]).forEach(r=>{ convAgg.byReason[r] = (convAgg.byReason[r]||0)+1; });
+  });
+
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip", {compression:"STORE"});
+  zip.folder("META-INF").file("container.xml", `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  const oebps = zip.folder("OEBPS");
+  const ranked = rankedProviders();
+
+  const isChapterBody = "<h1>ISP Rankings &amp; Quality of Service</h1>" + ranked.map((d,i)=>{
+    const qos = qosAgg[d.name] || {avg:0,count:0};
+    const convCount = convAgg.byIsp[d.name] || 0;
+    const st = latestStatusFor(d.name, statusRows);
+    const statusText = st ? FORMATTED_STATUS_LABEL[st.level] + ((st.level==="down"||st.level==="down-long") ? " (reported "+relTimeShort(st.at)+")" : "") : "No status reports yet";
+    const speed = speedAvgFor(d.name, speedRows);
+    const speedText = speed && speed.downloadMbps!=null
+      ? speed.downloadMbps.toFixed(1)+" Mbps down / "+(speed.uploadMbps||0).toFixed(1)+" Mbps up"+(speed.windowed?" (24h)":" (all-time — no tests in the last 24h)")
+      : "No speed tests recorded";
+    return `<h2>${i+1}. ${escapeXml(d.name)}</h2>
+      <p><em>${escapeXml(d.type)}</em></p>
+      <p><strong>Subscribers:</strong> ${d.subscribers!==null?d.subscribers.toLocaleString("en-US"):'—'} (${escapeXml(d.subLabel)})</p>
+      <p>${escapeXml(d.note)}</p>
+      <p><small>Source: ${escapeXml(d.source)}</small></p>
+      <p><strong>Crowdsourced QoS:</strong> ${qos.count ? qos.avg.toFixed(1)+'★ from '+qos.count+' report(s)' : 'No ratings yet'}</p>
+      <p><strong>Reported live status:</strong> ${escapeXml(statusText)}</p>
+      <p><strong>Bandwidth:</strong> ${escapeXml(speedText)}</p>
+      ${convCount ? `<p><strong>Reported switches/signups:</strong> ${convCount}</p>` : ""}`;
+  }).join("\n<hr/>\n");
+
+  const impactBody = `<h1>Proof of Impact</h1>
+    <p>${convAgg.total} reported switch(es)/signup(s) logged (full history, site: ${escapeXml(currentSite)}).</p>
+    <h2>By destination ISP</h2>
+    <ul>${Object.entries(convAgg.byIsp).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li>${escapeXml(k)}: ${v}</li>`).join("")}</ul>
+    <h2>By reason</h2>
+    <ul>${Object.entries(convAgg.byReason).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li>${escapeXml(k)}: ${v}</li>`).join("")}</ul>
+    <h2>Recent stories</h2>
+    <ul>${convRows.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,20).map(c=>
+      `<li>${escapeXml(c.from_isp||"New subscriber")} → ${escapeXml(c.to_isp)} (${escapeXml(c.city||"")}): ${escapeXml((c.reasons||[]).join(", "))}${c.comment? " — “"+escapeXml(c.comment)+"”":""}</li>`
+    ).join("")}</ul>`;
+
+  const chapters = [
+    { id:"titlepage", title:"ISP Tracker — Admin Edition", file:"title.xhtml",
+      body:`<h1>${escapeXml(SITE_LABELS[currentSite]||currentSite)} ISP Tracker — Admin Edition</h1><p>Full crowdsourced history — not capped at the public site's 1000-row client cache.</p><p>Generated ${new Date().toISOString().slice(0,10)}.</p>` },
+    { id:"isps", title:"ISP Rankings & QoS", file:"isps.xhtml", body:isChapterBody },
+    { id:"impact", title:"Proof of Impact", file:"impact.xhtml", body:impactBody }
+  ];
+  chapters.forEach(ch=> oebps.file(ch.file, xhtmlWrap(ch.title, ch.body)));
+
+  oebps.file("nav.xhtml", `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>Table of Contents</title></head>
+<body>
+<nav epub:type="toc" id="toc">
+<h1>Contents</h1>
+<ol>
+${chapters.map(ch=>`<li><a href="${ch.file}">${escapeXml(ch.title)}</a></li>`).join("\n")}
+</ol>
+</nav>
+</body>
+</html>`);
+
+  oebps.file("toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:${escapeXml(currentSite)}-isp-tracker-admin"/></head>
+  <docTitle><text>${escapeXml(SITE_LABELS[currentSite]||currentSite)} ISP Tracker — Admin Edition</text></docTitle>
+  <navMap>
+    ${chapters.map((ch,i)=>`<navPoint id="np${i+1}" playOrder="${i+1}"><navLabel><text>${escapeXml(ch.title)}</text></navLabel><content src="${ch.file}"/></navPoint>`).join("\n")}
+  </navMap>
+</ncx>`);
+
+  oebps.file("content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">urn:uuid:${escapeXml(currentSite)}-isp-tracker-admin-${Date.now()}</dc:identifier>
+    <dc:title>${escapeXml(SITE_LABELS[currentSite]||currentSite)} ISP Tracker — Admin Edition</dc:title>
+    <dc:language>en</dc:language>
+    <dc:creator>Matokipedo Admin (privileged export)</dc:creator>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/,'Z')}</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    ${chapters.map(ch=>`<item id="${ch.id}" href="${ch.file}" media-type="application/xhtml+xml"/>`).join("\n")}
+  </manifest>
+  <spine toc="ncx">
+    ${chapters.map(ch=>`<itemref idref="${ch.id}"/>`).join("\n")}
+  </spine>
+</package>`);
+
+  return zip.generateAsync({ type:"blob", mimeType:"application/epub+zip", compression:"DEFLATE" });
+}
+
+async function doExportEpub(){
+  if(!requireProviderDirectory()) return;
+  const btn = document.getElementById("exportEpubBtn");
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = "⏳ Building EPUB…";
+  try{
+    const blob = await buildEpubForSite();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${currentSite}-isp-tracker-admin.epub`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    console.error("EPUB export failed", e);
+    alert("Sorry, EPUB export failed: " + e.message);
+  }finally{
+    btn.innerHTML = originalHtml;
+  }
+}
+
+async function doExportPdfReport(){
+  if(!requireProviderDirectory()) return;
+  const [qosRows, statusRows] = await Promise.all([fetchAll("qos_reports"), fetchAll("status_reports")]);
+  const qosAgg = aggregateQos(qosRows);
+  const rowsHtml = rankedProviders().map((d,i)=>{
+    const qos = qosAgg[d.name] || {avg:0,count:0};
+    const st = latestStatusFor(d.name, statusRows);
+    return `<tr><td>${d.subscribers!==null?i+1:""}</td><td>${escapeXml(d.name)}</td><td>${escapeXml(d.type)}</td>
+      <td>${d.subscribers!==null?d.subscribers.toLocaleString("en-US"):"—"}</td>
+      <td>${st?FORMATTED_STATUS_LABEL[st.level]:"No reports"}</td>
+      <td>${qos.count?qos.avg.toFixed(1)+"★ ("+qos.count+")":"—"}</td>
+      <td>${escapeXml(d.source)}</td></tr>`;
+  }).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>ISP Tracker Report — ${escapeXml(SITE_LABELS[currentSite]||currentSite)}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;max-width:900px;margin:40px auto;color:#1a1a1a;padding:0 16px;}
+    table{width:100%;border-collapse:collapse;margin-top:16px;} td,th{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left;}
+    @media print{ .no-print{display:none;} }
+  </style></head><body>
+    <button class="no-print" onclick="window.print()" style="float:right;">🖨️ Print / Save as PDF</button>
+    <h1>ISP Tracker Report</h1>
+    <p>${escapeXml(SITE_LABELS[currentSite]||currentSite)} — generated ${new Date().toLocaleDateString()} from live, full-history crowdsourced data.</p>
+    <table><thead><tr><th>Rank</th><th>ISP</th><th>Type</th><th>Subscribers</th><th>Status</th><th>QoS</th><th>Source</th></tr></thead>
+    <tbody>${rowsHtml}</tbody></table>
+  </body></html>`;
+  const win = window.open("", "_blank");
+  if(!win){ alert("Please allow pop-ups to view the report."); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+}
+
+document.getElementById("exportPdfReportBtn").addEventListener("click", doExportPdfReport);
+document.getElementById("exportIspCsvBtn").addEventListener("click", doExportIspCsv);
+document.getElementById("exportQosCsvBtn").addEventListener("click", doExportQosCsv);
+document.getElementById("exportStatusCsvBtn").addEventListener("click", doExportStatusCsv);
+document.getElementById("exportSpeedCsvBtn").addEventListener("click", doExportSpeedCsv);
+document.getElementById("exportEpubBtn").addEventListener("click", doExportEpub);
+
+/* ---------- raw CSV export (any table, as-is) ---------- */
 function renderExportControls(){
   const el = document.getElementById("exportControls");
   el.innerHTML = `<select class="status-edit" id="exportTableSelect">

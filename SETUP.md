@@ -6,6 +6,10 @@ migration SQL are being added now so the rest of the setup (steps 1-3) isn't onl
 chat history. If you've already run the migration and created your admin login, skip to whichever
 section you haven't done yet.
 
+**v0.3.0 update:** all six export options (PDF Report, ISP/QoS/Status/Speed CSV, EPUB) moved here
+from the public `zwispqosd` demo — see the new "Formatted reports" card on the Export tab. They
+read full Supabase history for the selected site, not the demo's capped client-side cache.
+
 **v0.2.0 update:** added Google sign-in and native passkey (WebAuthn) support to the login
 screen, on top of the v0.1.0 email/password baseline. Section 3 below is new — read it before
 using Google/passkey sign-in, it needs dashboard steps only you can do.
@@ -124,16 +128,22 @@ repos (Netlify/Vercel/Cloudflare Pages all support that on their free tiers), or
   approve/reject. This is also where the six still-missing Lite-page languages (TjiKalanga,
   Chibarwe, Khoisan/Tjwao, Nambya, Ndau, Tonga) would surface once someone submits something for
   them — the CHANGELOG in `zwispqosd` flagged those as skipped rather than guessed at.
-- **Export** — CSV of any table, filtered to the selected site.
+- **Export** — two tiers: "Formatted reports" (moved here from the public demo in v0.3.0 — Export
+  PDF Report, Export ISP CSV, Export QoS/Status/Speed CSV, Export EPUB, all built from full
+  Supabase history for the selected site) and "Raw CSV export" (any table, as-is, filtered to the
+  selected site).
 
 ## What's deliberately NOT in this v1
 
 - **Providers are still hardcoded** in `index.html`'s `const DATA = [...]` array on the public
-  sites, not database-driven. Making the provider list itself editable from here (name,
-  subscriber count, type) would mean also changing the public site to fetch from a `providers`
-  table instead of its hardcoded array — a real, separate, more invasive change to a
-  production file. I didn't make that call unilaterally; say the word and I'll design and build
-  that migration path as its own reviewable step.
+  sites, not database-driven. As of v0.3.0 this file also carries its own copy
+  (`PROVIDER_DIRECTORY`, `zw` only so far) so the moved-here ISP CSV/EPUB/PDF exports have names,
+  subscriber counts, and sourcing to report against — meaning it now has to be kept in sync by
+  hand across two files. Making the provider list itself editable from here (and database-driven
+  everywhere) would mean also changing the public site to fetch from a `providers` table instead
+  of its hardcoded array — a real, separate, more invasive change to a production file. I didn't
+  make that call unilaterally; say the word and I'll design and build that migration path as its
+  own reviewable step, which would also retire this duplication.
 - **No email delivery.** "Monthly refreshed report" implies actually sending something on a
   schedule — this app only generates a report on demand when you click a provider. Automating
   that would need a scheduled job (a Supabase Edge Function on a cron trigger, most likely) and an
