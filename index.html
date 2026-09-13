@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.3.3">
+<meta name="app-version" content="0.3.4">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -249,7 +249,7 @@
         <div class="hint">
           Moved here from the public demo in v0.3.0 — these read the selected site's full Supabase
           history, not the demo's capped 1000-row client cache. Needs a provider directory wired
-          up for the selected site — Zimbabwe, Botswana and South Africa all have one now (see PROVIDER_DIRECTORY in the code).
+          up for the selected site — Zimbabwe, Botswana, South Africa, Zambia and Mozambique all have one now (see PROVIDER_DIRECTORY in the code).
         </div>
         <div class="btn-row">
           <button class="btn" id="exportPdfReportBtn" type="button">🖨️ Export PDF Report</button>
@@ -316,7 +316,7 @@ if(supa){
 }
 
 const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
-const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)" };
+const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)", zm: "Zambia (zm)", mz: "Mozambique (mz)" };
 
 /* ---------- known-blank languages, per site (audited against each demo's own I18N content
    2026-09-10 — this used to be a single hardcoded, Zimbabwe-only, and actually-wrong sentence
@@ -324,7 +324,9 @@ const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Afric
 const MISSING_LANGS = {
   zw: ["Chibarwe", "Khoisan (Tjwao)", "Nambya", "Ndau"],
   bw: ["Kgalagadi", "Mbukushu", "Tshwa", "!Xóõ"],
-  za: ["Afrikaans", "isiZulu", "Sepedi", "siSwati", "isiNdebele"]
+  za: ["Afrikaans", "isiZulu", "Sepedi", "siSwati", "isiNdebele"],
+  zm: ["Bemba", "Lozi", "Kaonde", "Luvale", "Lunda"],
+  mz: ["Emakhuwa", "Elomwe", "Cisena", "Echuwabo", "Cindau", "Xitswa"]
 };
 
 /* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
@@ -414,6 +416,40 @@ const PROVIDER_DIRECTORY = {
     { name: "Frogfoot Networks", type: "Fixed/Wireless", subscribers: 187000, subLabel: "fibre homes connected (of ~446,000 passed)",
       note: "Open-access fibre network operator.",
       source: "Industry fibre roundup, via MyBroadband (17 Feb 2026)" }
+  ],
+  zm: [
+    { name: "Zamtel", type: "Mobile", subscribers: null, subLabel: "no per-operator subscriber count published",
+      note: "Mobile & Fixed. 100% Government of Zambia owned (reacquired 2012 after a reversed fraudulent 2010 sale to Libya's LAP Green Networks). Also Zambia's sole fixed-line operator (~80,000 lines). ZICTA does not publish per-operator subscriber figures.",
+      source: "ZICTA 2024 Annual Market Report; Wikipedia \"Zamtel\"" },
+    { name: "MTN Zambia", type: "Mobile", subscribers: null, subLabel: "no per-operator subscriber count published",
+      note: "Subsidiary of MTN Group (South Africa); some free-float shares trade on the Lusaka Securities Exchange. ZICTA does not publish per-operator subscriber figures.",
+      source: "ZICTA 2024 Annual Market Report" },
+    { name: "Airtel Zambia", type: "Mobile", subscribers: null, subLabel: "no per-operator subscriber count published",
+      note: "Subsidiary of Airtel Africa plc, majority-owned by Bharti Airtel (India). ZICTA does not publish per-operator subscriber figures.",
+      source: "ZICTA 2024 Annual Market Report" },
+    { name: "Liquid Intelligent Technologies Zambia", type: "Fixed/Wireless", subscribers: null, subLabel: "no subscriber count published",
+      note: "Fixed/Fibre. Subsidiary of Cassava Technologies (Strive Masiyiwa's pan-African group). National fiber backbone, wholesale capacity and public Wi-Fi. No subscriber count published.",
+      source: "liquid.tech Zambia office page" },
+    { name: "Paratus Zambia", type: "Fixed/Wireless", subscribers: null, subLabel: "no subscriber count published",
+      note: "Fixed/Fibre & Fixed Wireless. Part of Paratus Group (Namibia-headquartered, linked to Namibia's Capricorn Group). Fiber, fixed wireless, satellite and enterprise connectivity. No subscriber count published.",
+      source: "paratus.africa" },
+    { name: "Zamnet", type: "Fixed/Wireless", subscribers: null, subLabel: "no subscriber count published",
+      note: "Fixed/Fibre & ISP services. Zambia's original ISP. Current ownership/status could not be confirmed in research for this build — flagged honestly rather than guessed.",
+      source: "unconfirmed — flagged for follow-up research" }
+  ],
+  mz: [
+    { name: "Vodacom Moçambique", type: "Mobile", subscribers: 12400000, subLabel: "customers (company-published, FY2025, as of 31 March 2025)",
+      note: "Majority owned by Vodacom Group (South Africa; itself majority-owned by Vodafone Group plc, UK); local shareholders include Intelec Holdings and the Emotel consortium (exact stakes unconfirmed). 2G/3G/4G/5G mobile, fixed broadband and M-Pesa mobile money. Not an INCM-verified count.",
+      source: "360mozambique.com, 2025-05-26, reporting Vodacom Group FY2025 results (company-published)" },
+    { name: "Movitel", type: "Mobile", subscribers: null, subLabel: "no published current subscriber count",
+      note: "Joint venture of Viettel Group (Vietnam, state-owned) and SPI Gestão e Investimentos (Mozambican company); exact ownership split unconfirmed. Widest rural/district coverage of any operator (127+ district centers) plus its own fiber backbone.",
+      source: "No INCM or company-published subscriber figure found (2026 research pass)" },
+    { name: "Tmcel", type: "Mobile", subscribers: null, subLabel: "no published current subscriber count",
+      note: "Moçambique Telecom, S.A. — 100% Mozambican state-owned. Formed January 2019 from the merger of TDM (fixed) and Mcel (mobile); not two separate current companies. Mobile, fixed-line voice and fixed broadband.",
+      source: "No INCM or company-published subscriber figure found (2026 research pass)" },
+    { name: "TVCABO Moçambique", type: "Fixed/Wireless", subscribers: null, subLabel: "no published current subscriber count",
+      note: "Majority-owned by Visabeira Group (Portugal); a 2024 report referenced Visabeira 'seeking an 80% stake', implying it wasn't yet fully consolidated at that level. Fiber/cable broadband and pay-TV, primarily urban (Maputo, Beira, Matola, Nampula).",
+      source: "No INCM or company-published subscriber figure found (2026 research pass)" }
   ]
 };
 const DAY_MS = 24*60*60*1000;
