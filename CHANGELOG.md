@@ -7,6 +7,21 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.5.1] — 2026-09-17
+
+### Changed
+- **Full benchmark report is now shown inline, as the leaf of the same breadcrumb Explorer used
+  everywhere else, instead of opening in a new tab/window.** Ed's own framing: the drill-down
+  should be "auto-scrollable inline... NOT a new tab." Drilling Connection type → ISP now renders
+  the full report (stat grid, 12-week QoS trend, complaint-cluster keyword tally, and a scrollable
+  raw-comments table) directly inside the Benchmark reports card; the breadcrumb trail still lets
+  you come back out to the ISP list or the connection-type list at any point, same as every other
+  panel.
+- The report's **Print / Save as PDF** button still produces a real, printable PDF, but now via a
+  scoped in-page print (a new `printElementById()` helper hides everything else on the page for the
+  duration of the print, then restores it once the browser's print dialog closes) rather than
+  opening a second document in a new tab to print from.
+
 ## [0.5.0] — 2026-09-16
 
 ### Added

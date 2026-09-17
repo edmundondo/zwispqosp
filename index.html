@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.5.0">
+<meta name="app-version" content="0.5.1">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -122,6 +122,15 @@
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
   .empty{color:var(--muted);font-style:italic;font-size:13px;padding:10px 0;}
   .error-note{color:var(--red);font-size:13px;}
+
+  /* Print exactly one element (used by the inline benchmark report's "Print / Save as PDF"
+     button) without leaving the tab — hide everything else for the duration of the print,
+     rather than opening a separate print-only document in a new tab/window. */
+  @media print{
+    body.print-scoped *{visibility:hidden!important;}
+    body.print-scoped .print-target,body.print-scoped .print-target *{visibility:visible!important;}
+    body.print-scoped .print-target{position:absolute;left:0;top:0;width:100%;}
+  }
   .loading{color:var(--muted);font-size:13px;}
 
   .lang-group{margin-bottom:18px;}
@@ -247,7 +256,8 @@
         <h2>Full benchmark report (paid-tier) — drill down</h2>
         <div class="hint" style="margin:0 0 10px;">
           Connection type → ISP → the full report (same shape as the free public teaser, plus raw
-          anonymized comments and a keyword complaint-cluster tally). Opens in a new tab, printable to PDF.
+          anonymized comments and a keyword complaint-cluster tally). Shown right here, no new tab —
+          use the Print / Save as PDF button on the report itself to export it.
         </div>
         <div id="reportCrumbs" class="explorer-crumbs"></div>
         <div id="reportPicker"></div>
@@ -309,7 +319,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.5.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.5.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -1006,14 +1016,17 @@ async function renderLicensingExplorer(){
   `;
 }
 
-/* ---------- full benchmark reports: breadcrumb drill-down (v0.5.0) ----------
-   Connection type → ISP → the full report (still opened in a new tab — it's a standalone,
-   printable document, not something to cram into this card). Type comes from
-   PROVIDER_DIRECTORY; an ISP with ratings but no directory entry lands in "Other / unlisted"
-   rather than being silently dropped. */
+/* ---------- full benchmark reports: breadcrumb drill-down (v0.5.1) ----------
+   Connection type → ISP → the full report, rendered right here as the leaf of the same
+   Explorer instead of a new tab/window — "always come out" via the breadcrumbs like every
+   other panel. A dedicated Print / Save as PDF button on the leaf still gets you a real
+   exportable PDF (via printElementById, which prints just that one element in place — no
+   second tab or document involved). Type comes from PROVIDER_DIRECTORY; an ISP with ratings
+   but no directory entry lands in "Other / unlisted" rather than being silently dropped. */
 let benchPath = [];
 function benchGoto(idx){ benchPath = idx<0?[]:benchPath.slice(0,idx+1); renderReportPicker(); }
 function benchDrillType(type){ benchPath = [{level:'type', value:type, label:type}]; renderReportPicker(); }
+function benchDrillReport(isp){ benchPath = [benchPath[0], {level:'report', value:isp, label:isp}]; renderReportPicker(); }
 
 async function renderReportPicker(){
   const el = document.getElementById("reportPicker");
@@ -1026,6 +1039,9 @@ async function renderReportPicker(){
     const isLast = i===crumbs.length-1;
     return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="benchGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
   }).join("");
+
+  const reportStep = benchPath.find(p=>p.level==='report');
+  if(reportStep){ await renderFullReportInline(el, reportStep.value); return; }
 
   if(!isps.length){ el.innerHTML = `<div class="empty">No ratings recorded yet for this site — nothing to report on.</div>`; return; }
 
@@ -1044,11 +1060,26 @@ async function renderReportPicker(){
   const inType = isps.filter(isp=>typeOf(isp)===typeStep.value);
   el.innerHTML = !inType.length ? `<div class="empty">No ISPs of this type have ratings yet.</div>` :
     `<div class="explorer-list">${inType.map(isp=>`
-    <div class="explorer-row" onclick="openFullReport(${escAttr(JSON.stringify(isp))})">
-      <span class="explorer-row-label">${isp}</span><span class="explorer-row-meta" style="color:var(--muted);font-size:12px;">full report ↗</span>
+    <div class="explorer-row" onclick="benchDrillReport(${escAttr(JSON.stringify(isp))})">
+      <span class="explorer-row-label">${isp}</span><span class="explorer-row-caret">›</span>
     </div>`).join("")}</div>`;
 }
-async function openFullReport(isp){
+
+/* Prints exactly one element in place: hides the rest of the page for the duration of the
+   print via the .print-scoped/.print-target rule above, then restores everything once the
+   browser's print dialog closes. No new tab or window is opened at any point. */
+function printElementById(id){
+  document.querySelectorAll(".print-target").forEach(e=>e.classList.remove("print-target"));
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add("print-target");
+  document.body.classList.add("print-scoped");
+  window.print();
+}
+window.addEventListener("afterprint", ()=>{ document.body.classList.remove("print-scoped"); });
+
+async function renderFullReportInline(el, isp){
+  el.innerHTML = `<div class="loading">Building the full report for ${isp}…</div>`;
   const [qos, status, speed, conv, ref] = await Promise.all([
     fetchAll("qos_reports", q=>q.eq("isp", isp)),
     fetchAll("status_reports", q=>q.eq("isp", isp)),
@@ -1075,8 +1106,8 @@ async function openFullReport(isp){
   const trendHtml = weeks.map(w=>{
     const h = w.val===null ? 2 : Math.max(2, (w.val/5)*60);
     return `<div style="display:inline-block;width:22px;text-align:center;margin-right:4px;">
-      <div style="height:60px;display:flex;align-items:flex-end;"><div style="width:100%;height:${h}px;background:#4fd1c5;border-radius:2px 2px 0 0;"></div></div>
-      <div style="font-size:8px;color:#888;margin-top:2px;">${w.label}</div>
+      <div style="height:60px;display:flex;align-items:flex-end;"><div style="width:100%;height:${h}px;background:var(--accent);border-radius:2px 2px 0 0;"></div></div>
+      <div style="font-size:8px;color:var(--muted);margin-top:2px;">${w.label}</div>
     </div>`;
   }).join("");
 
@@ -1090,50 +1121,47 @@ async function openFullReport(isp){
     });
   });
   const topWords = Object.entries(wordCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const commentRows = [...qos.map(r=>({...r,_type:"QoS rating"})), ...status.map(r=>({...r,_type:"Status report"})), ...speed.map(r=>({...r,_type:"Speed test"}))]
+    .filter(r=>r.comment).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,200);
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Full Benchmarking Report — ${isp}</title>
-  <style>
-    body{font-family:Georgia,'Times New Roman',serif;max-width:820px;margin:40px auto;color:#1a1a1a;line-height:1.55;padding:0 16px;}
-    h1{font-size:26px;margin-bottom:4px;} h2{font-size:18px;margin-top:32px;border-bottom:2px solid #222;padding-bottom:4px;}
-    .cover-sub{color:#555;margin-bottom:24px;} .stat-grid{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0;}
-    .stat-card{border:1px solid #ccc;border-radius:8px;padding:12px 16px;min-width:140px;}
-    .stat-num{font-size:22px;font-weight:700;} .stat-lbl{font-size:12px;color:#666;}
-    table{width:100%;border-collapse:collapse;margin-top:12px;} td,th{border:1px solid #ccc;padding:6px 8px;font-size:13px;text-align:left;}
-    .badge{display:inline-block;background:#eee;border-radius:12px;padding:3px 10px;font-size:12px;margin:2px;}
-    .confidential{font-size:11px;color:#a00;border:1px solid #a00;border-radius:6px;padding:6px 10px;display:inline-block;margin-bottom:16px;}
-    @media print{ .no-print{display:none;} }
-  </style></head><body>
-    <button class="no-print" onclick="window.print()" style="float:right;">🖨️ Print / Save as PDF</button>
-    <div class="confidential">CONFIDENTIAL — licensed report, not for redistribution</div>
-    <h1>Independent ISP Benchmarking Report — Full Edition</h1>
-    <div class="cover-sub">Prepared for <strong>${isp}</strong> — generated ${new Date().toLocaleDateString()} from live, crowdsourced data on the Matokipedo tracker (site: ${currentSite})</div>
+  // Rendered as a fragment inside the existing card (autosize + auto-scroll via the same
+  // .explorer-table-wrap used everywhere else), not a standalone document — printElementById
+  // is what turns it into a PDF, in place, when the export button is used.
+  el.innerHTML = `
+    <div id="fullReportBody">
+      <div class="card-head" style="margin-bottom:4px;">
+        <h3 style="margin:0;font-size:16px;">${isp} — full benchmarking report</h3>
+        <button class="btn small" type="button" onclick="printElementById('fullReportBody')">🖨️ Print / Save as PDF</button>
+      </div>
+      <div class="hint" style="margin:0 0 14px;">
+        CONFIDENTIAL — licensed report, not for redistribution. Generated ${new Date().toLocaleDateString()} from
+        live, crowdsourced data on the Matokipedo tracker (site: ${currentSite}).
+      </div>
+      <div class="stats" style="margin-bottom:14px;">
+        <div class="stat"><div class="num">${qosAvg!==null?qosAvg.toFixed(1)+"★":"—"}</div><div class="lbl">Avg QoS (${qos.length} ratings)</div></div>
+        <div class="stat"><div class="num">${reliability!==null?reliability.toFixed(0)+"%":"—"}</div><div class="lbl">Live, 30d (${recentStatus.length})</div></div>
+        <div class="stat"><div class="num">${downAvg!==null?downAvg.toFixed(1)+" Mbps":"—"}</div><div class="lbl">Avg download (${speed.length} tests)</div></div>
+        <div class="stat"><div class="num">${(gained-lost)>=0?"+":""}${gained-lost}</div><div class="lbl">Net switches (${gained}↑/${lost}↓)</div></div>
+        <div class="stat"><div class="num">${ref.length}</div><div class="lbl">Referral clicks</div></div>
+      </div>
 
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-num">${qosAvg!==null?qosAvg.toFixed(1)+"★":"—"}</div><div class="stat-lbl">Avg QoS (${qos.length} ratings)</div></div>
-      <div class="stat-card"><div class="stat-num">${reliability!==null?reliability.toFixed(0)+"%":"—"}</div><div class="stat-lbl">Reported "live" (30d, n=${recentStatus.length})</div></div>
-      <div class="stat-card"><div class="stat-num">${downAvg!==null?downAvg.toFixed(1)+" Mbps":"—"}</div><div class="stat-lbl">Avg download (${speed.length} tests)</div></div>
-      <div class="stat-card"><div class="stat-num">${(gained-lost)>=0?"+":""}${gained-lost}</div><div class="stat-lbl">Net switches (${gained} gained / ${lost} lost)</div></div>
-      <div class="stat-card"><div class="stat-num">${ref.length}</div><div class="stat-lbl">Referral link clicks</div></div>
-    </div>
+      <h4 style="margin:18px 0 8px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">12-week QoS rating trend</h4>
+      <div>${trendHtml}</div>
 
-    <h2>12-week QoS rating trend</h2>
-    <div>${trendHtml}</div>
+      <h4 style="margin:18px 0 8px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">Emerging complaint / topic clusters</h4>
+      <div>${topWords.length ? topWords.map(([w,n])=>
+        `<span style="display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:11px;margin:0 4px 4px 0;">${w} · ${n}</span>`
+      ).join("") : '<div class="empty">Not enough free-text comments yet to cluster.</div>'}</div>
 
-    <h2>Emerging complaint / topic clusters (keyword tally, all report types)</h2>
-    ${topWords.length ? topWords.map(([w,n])=>`<span class="badge">${w} · ${n}</span>`).join(" ") : "<p>Not enough free-text comments yet to cluster.</p>"}
-
-    <h2>Raw anonymized comments (${comments.length})</h2>
-    <table><thead><tr><th>Date</th><th>Type</th><th>Comment</th></tr></thead><tbody>
-    ${[...qos.map(r=>({...r,_type:"QoS rating"})), ...status.map(r=>({...r,_type:"Status report"})), ...speed.map(r=>({...r,_type:"Speed test"}))]
-      .filter(r=>r.comment).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,200)
-      .map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString()}</td><td>${r._type}</td><td>${(r.comment||"").replace(/</g,"&lt;")}</td></tr>`).join("")}
-    </tbody></table>
-    <p style="font-size:11px;color:#888;">No commenter identity, city precision beyond what was voluntarily submitted, or device fingerprinting is included — consistent with the public site's privacy design.</p>
-  </body></html>`;
-
-  const win = window.open("", "_blank");
-  if(!win){ alert("Please allow pop-ups to view the report."); return; }
-  win.document.open(); win.document.write(html); win.document.close();
+      <h4 style="margin:18px 0 8px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">Raw anonymized comments (${commentRows.length})</h4>
+      <div class="explorer-table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Comment</th></tr></thead><tbody>
+        ${commentRows.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString()}</td><td>${r._type}</td><td>${(r.comment||"").replace(/</g,"&lt;")}</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="hint" style="margin-top:10px;">
+        No commenter identity, city precision beyond what was voluntarily submitted, or device fingerprinting is
+        included — consistent with the public site's privacy design.
+      </div>
+    </div>`;
 }
 
 /* ---------- moderation: breadcrumb drill-down for geo tables (v0.5.0) ----------
