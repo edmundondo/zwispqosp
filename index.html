@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.3.4">
+<meta name="app-version" content="0.4.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -90,6 +90,15 @@
   .pill.lapsed,.pill.declined{background:rgba(232,97,95,.15);color:var(--red);}
 
   select.status-edit{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:12px;}
+
+  /* Provider analytics drill-down (city/time filters, clickable bars, raw report table) */
+  .filter-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;}
+  .filter-row .field{margin-bottom:0;min-width:170px;}
+  .filter-row select.status-edit{width:100%;padding:8px 10px;font-size:13px;}
+  .bar-row-clickable{cursor:pointer;border-radius:6px;margin:0 -6px;padding-left:6px;padding-right:6px;transition:background .12s;}
+  .bar-row-clickable:hover{background:var(--panel2);}
+  .bar-n{color:var(--muted);font-weight:400;}
+  .pill.clear{cursor:pointer;background:rgba(124,156,255,.15);color:var(--accent2);}
   input.inline-input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-size:12px;width:100%;}
 
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
@@ -186,6 +195,23 @@
 
     <div class="panel" id="panel-providers">
       <div class="card">
+        <h2>Filter this drill-down</h2>
+        <div class="hint" style="margin:0 0 8px;">
+          Narrow every panel below to one region and/or time window — or just click any bar
+          (a city, an ISP) to drill straight into it.
+        </div>
+        <div id="providerFilters"></div>
+      </div>
+      <div class="card">
+        <h2>Reports by city / region</h2>
+        <div class="hint" style="margin:0 0 8px;">
+          Every QoS rating, status report and speed test, counted by where it came from — the
+          quickest way to confirm testers in a given region are actually getting through. Click a
+          city to filter everything below to it.
+        </div>
+        <div id="providerCities"></div>
+      </div>
+      <div class="card">
         <h2>QoS rating average</h2>
         <div id="providerQos"></div>
       </div>
@@ -200,6 +226,13 @@
       <div class="card">
         <h2>Net conversions (gained − lost)</h2>
         <div id="providerConversions"></div>
+      </div>
+      <div class="card">
+        <h2>Individual reports — last unit</h2>
+        <div class="hint" style="margin:0 0 8px;">
+          The actual submissions behind every average above — one row per report, newest first.
+        </div>
+        <div id="providerRawTable"></div>
       </div>
     </div>
 
@@ -275,7 +308,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.3.3 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.4.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -624,19 +657,28 @@ async function fetchAll(table, extra){
   return data || [];
 }
 function avg(nums){ return nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : null; }
+/* HTML-escapes a JSON.stringify()'d value so it survives being embedded inside a *double-quoted*
+   inline onclick="..." attribute. Without this, onclick="fn(${JSON.stringify(str)})" breaks the
+   moment `str` is a string (JSON.stringify wraps it in its own double quotes) — the HTML parser
+   ends the attribute at that first embedded quote and mangles everything after it. Found live in
+   `openFullReport`'s provider-picker buttons while building the provider-analytics drill-down
+   (which uses the same pattern for its clickable bars) — fixed in both places. */
+function escAttr(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
 function groupBy(rows, key){
   const m = {};
   rows.forEach(r=>{ (m[r[key]] = m[r[key]] || []).push(r); });
   return m;
 }
-function barsHtml(entries, fmt, maxIsBest){
-  if(!entries.length) return `<div class="empty">No data yet for this site.</div>`;
+function barsHtml(entries, fmt, onClickFn){
+  if(!entries.length) return `<div class="empty">No data yet for this filter.</div>`;
   const vals = entries.map(e=>e.val).filter(v=>v!==null && !isNaN(v));
   const max = vals.length ? Math.max(...vals.map(Math.abs)) : 1;
   return entries.map(e=>{
     const pct = e.val===null ? 0 : Math.min(100, Math.abs(e.val)/(max||1)*100);
-    return `<div class="bar-row">
-      <div class="bar-label" title="${e.name}">${e.name}</div>
+    const rowCls = onClickFn ? "bar-row bar-row-clickable" : "bar-row";
+    const rowAttrs = onClickFn ? ` onclick="${onClickFn}(${escAttr(JSON.stringify(e.name))})" title="${e.name} — click to drill down"` : ` title="${e.name}"`;
+    return `<div class="${rowCls}"${rowAttrs}>
+      <div class="bar-label">${e.name}${e.n!=null ? ` <span class="bar-n">(${e.n})</span>` : ""}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div>
       <div class="bar-val">${e.val===null?"—":fmt(e.val)}</div>
     </div>`;
@@ -666,39 +708,153 @@ async function renderOverview(){
   el.innerHTML = stats.map(s=>`<div class="stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join("");
 }
 
-/* ---------- provider analytics ---------- */
+/* ---------- provider analytics (drill-down: region/time filters, clickable bars, raw units) ----------
+   Ed's own framing: the reports his testers submit already carry a `city` (and, for speed tests
+   that ran the richer migration, connection_type/device_type/latency/jitter/packet-loss too) —
+   but until this feature this app only ever showed a single national-average bar per ISP, so none
+   of that regional/per-submission detail was reachable here. This adds a city+time filter, makes
+   every bar clickable to drill into it, and surfaces the individual report rows those bars are
+   built from, so "I have testers in the field but don't see the results" has an actual answer. */
+let paCityFilter = "";  // "" = all cities/regions
+let paIspFilter = "";   // "" = all ISPs; set by clicking a bar
+let paDaysFilter = 0;   // 0 = all time, else last N days
+
+function paFilterRows(rows, days, city){
+  const cutoff = days>0 ? Date.now() - days*24*60*60*1000 : 0;
+  return rows.filter(r=>{
+    if(cutoff && new Date(r.created_at).getTime() < cutoff) return false;
+    if(city && r.city !== city) return false;
+    return true;
+  });
+}
+function renderProviderFilters(cities){
+  const el = document.getElementById("providerFilters");
+  const activeIsp = paIspFilter ? `<div class="field"><label>ISP (from a bar click)</label>
+      <div class="pill clear" onclick="paSetIsp(${escAttr(JSON.stringify(paIspFilter))})">${paIspFilter} ✕</div></div>` : "";
+  const resetBtn = (paCityFilter||paIspFilter||paDaysFilter)
+    ? `<div class="field"><label>&nbsp;</label><button class="btn" type="button" onclick="paResetFilters()">Reset filters</button></div>` : "";
+  el.innerHTML = `<div class="filter-row">
+    <div class="field"><label>City / region</label>
+      <select class="status-edit" id="paCityFilter">
+        <option value="">All cities</option>
+        ${cities.map(c=>`<option value="${c}" ${c===paCityFilter?"selected":""}>${c}</option>`).join("")}
+      </select>
+    </div>
+    <div class="field"><label>Time window</label>
+      <select class="status-edit" id="paDaysFilter">
+        <option value="0" ${paDaysFilter===0?"selected":""}>All time</option>
+        <option value="7" ${paDaysFilter===7?"selected":""}>Last 7 days</option>
+        <option value="30" ${paDaysFilter===30?"selected":""}>Last 30 days</option>
+        <option value="90" ${paDaysFilter===90?"selected":""}>Last 90 days</option>
+      </select>
+    </div>
+    ${activeIsp}${resetBtn}
+  </div>`;
+  document.getElementById("paCityFilter").addEventListener("change", e=>{ paCityFilter = e.target.value; renderProviderAnalytics(); });
+  document.getElementById("paDaysFilter").addEventListener("change", e=>{ paDaysFilter = parseInt(e.target.value,10)||0; renderProviderAnalytics(); });
+}
+function paSetCity(city){ paCityFilter = (paCityFilter===city) ? "" : city; renderProviderAnalytics(); }
+function paSetIsp(isp){ paIspFilter = (paIspFilter===isp) ? "" : isp; renderProviderAnalytics(); }
+function paResetFilters(){ paCityFilter=""; paIspFilter=""; paDaysFilter=0; renderProviderAnalytics(); }
+
 async function renderProviderAnalytics(){
-  ["providerQos","providerReliability","providerSpeed","providerConversions"].forEach(id=>{
+  ["providerCities","providerQos","providerReliability","providerSpeed","providerConversions","providerRawTable"].forEach(id=>{
     document.getElementById(id).innerHTML = `<div class="loading">Loading…</div>`;
   });
-  const [qos, status, speed, conv] = await Promise.all([
+  const [qosAll, statusAll, speedAll, convAll] = await Promise.all([
     fetchAll("qos_reports"), fetchAll("status_reports"), fetchAll("speed_reports"), fetchAll("conversions")
   ]);
 
-  const qosByIsp = groupBy(qos, "isp");
-  const qosEntries = Object.entries(qosByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.stars)) }))
+  const cities = [...new Set([...qosAll, ...statusAll, ...speedAll, ...convAll].map(r=>r.city).filter(Boolean))].sort();
+  renderProviderFilters(cities);
+
+  const qos = paFilterRows(qosAll, paDaysFilter, paCityFilter);
+  const status = paFilterRows(statusAll, paDaysFilter, paCityFilter);
+  const speed = paFilterRows(speedAll, paDaysFilter, paCityFilter);
+  const conv = paFilterRows(convAll, paDaysFilter, paCityFilter);
+
+  // Reports by city — raw activity counts, independent of any ISP filter, so "no results" always
+  // means "no reports for this filter", never "hidden behind an ISP you didn't pick."
+  const cityCounts = {};
+  [...qos, ...status, ...speed].forEach(r=>{ const c = r.city || "Unknown"; cityCounts[c] = (cityCounts[c]||0) + 1; });
+  const cityEntries = Object.entries(cityCounts).map(([name,val])=>({ name, val })).sort((a,b)=>b.val-a.val);
+  document.getElementById("providerCities").innerHTML = barsHtml(cityEntries, v=>String(v), "paSetCity");
+
+  const ispQos = paIspFilter ? qos.filter(r=>r.isp===paIspFilter) : qos;
+  const qosByIsp = groupBy(ispQos, "isp");
+  const qosEntries = Object.entries(qosByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.stars)), n: rows.length }))
     .sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerQos").innerHTML = barsHtml(qosEntries, v=>v.toFixed(1)+"★");
+  document.getElementById("providerQos").innerHTML = barsHtml(qosEntries, v=>v.toFixed(1)+"★", "paSetIsp");
 
   const cutoff30 = Date.now() - 30*24*60*60*1000;
-  const statusByIsp = groupBy(status.filter(r=>new Date(r.created_at).getTime()>=cutoff30), "isp");
+  const ispStatus = (paIspFilter ? status.filter(r=>r.isp===paIspFilter) : status).filter(r=>new Date(r.created_at).getTime()>=cutoff30);
+  const statusByIsp = groupBy(ispStatus, "isp");
   const relEntries = Object.entries(statusByIsp).map(([isp,rows])=>({
-    name: isp, val: rows.length ? (rows.filter(r=>r.status==="live").length/rows.length*100) : null
+    name: isp, val: rows.length ? (rows.filter(r=>r.status==="live").length/rows.length*100) : null, n: rows.length
   })).sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerReliability").innerHTML = barsHtml(relEntries, v=>v.toFixed(0)+"%");
+  document.getElementById("providerReliability").innerHTML = barsHtml(relEntries, v=>v.toFixed(0)+"%", "paSetIsp");
 
-  const speedByIsp = groupBy(speed, "isp");
-  const speedEntries = Object.entries(speedByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.download_mbps).filter(v=>v!=null)) }))
+  const ispSpeed = paIspFilter ? speed.filter(r=>r.isp===paIspFilter) : speed;
+  const speedByIsp = groupBy(ispSpeed, "isp");
+  const speedEntries = Object.entries(speedByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.download_mbps).filter(v=>v!=null)), n: rows.length }))
     .sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerSpeed").innerHTML = barsHtml(speedEntries, v=>v.toFixed(1)+" Mbps");
+  document.getElementById("providerSpeed").innerHTML = barsHtml(speedEntries, v=>v.toFixed(1)+" Mbps", "paSetIsp");
 
+  const ispConv = paIspFilter ? conv.filter(c=>c.to_isp===paIspFilter||c.from_isp===paIspFilter) : conv;
   const convNet = {};
-  conv.forEach(c=>{
+  ispConv.forEach(c=>{
     if(c.to_isp) convNet[c.to_isp] = (convNet[c.to_isp]||0) + 1;
     if(c.from_isp) convNet[c.from_isp] = (convNet[c.from_isp]||0) - 1;
   });
   const convEntries = Object.entries(convNet).map(([isp,n])=>({ name: isp, val: n })).sort((a,b)=>b.val-a.val);
-  document.getElementById("providerConversions").innerHTML = barsHtml(convEntries, v=>(v>=0?"+":"")+v);
+  document.getElementById("providerConversions").innerHTML = barsHtml(convEntries, v=>(v>=0?"+":"")+v, "paSetIsp");
+
+  renderProviderRawTable(qos, status, speed);
+}
+
+/* The literal "last unit" of this app's data — one row per submitted report, not an average. */
+function renderProviderRawTable(qos, status, speed){
+  const el = document.getElementById("providerRawTable");
+  let rows = [
+    ...qos.map(r=>({ ts:r.created_at, type:"QoS rating", isp:r.isp, city:r.city, value:`${r.stars}★`, detail:"", comment:r.comment })),
+    ...status.map(r=>({ ts:r.created_at, type:"Status", isp:r.isp, city:r.city, value:r.status, detail:"", comment:r.comment })),
+    ...speed.map(r=>{
+      const detailBits = [
+        r.connection_type, r.device_type,
+        r.latency_download_ms!=null ? `${Math.round(r.latency_download_ms)}ms latency` : null,
+        r.jitter_download_ms!=null ? `${Math.round(r.jitter_download_ms)}ms jitter` : null,
+        r.packet_loss_pct!=null ? `${Number(r.packet_loss_pct).toFixed(1)}% loss` : null
+      ].filter(Boolean);
+      return {
+        ts:r.created_at, type:"Speed test", isp:r.isp, city:r.city,
+        value: `${r.download_mbps!=null?Number(r.download_mbps).toFixed(1):"—"}↓ / ${r.upload_mbps!=null?Number(r.upload_mbps).toFixed(1):"—"}↑ Mbps`,
+        detail: detailBits.join(" · "), comment:r.comment
+      };
+    })
+  ];
+  if(paIspFilter) rows = rows.filter(r=>r.isp===paIspFilter);
+  rows.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  const total = rows.length;
+  rows = rows.slice(0, 500);
+  if(!total){ el.innerHTML = `<div class="empty">No individual reports match this filter yet.</div>`; return; }
+  el.innerHTML = `
+    <div class="hint" style="margin:0 0 10px;">
+      Showing ${rows.length} of ${total} matching report${total===1?"":"s"}, newest first — the actual
+      submissions behind the averages above. For everything unfiltered, use Raw CSV export.
+    </div>
+    <div style="overflow-x:auto;"><table><thead><tr>
+      <th>When</th><th>Type</th><th>ISP</th><th>City</th><th>Value</th><th>Test detail</th><th>Comment</th>
+    </tr></thead><tbody>
+      ${rows.map(r=>`<tr>
+        <td style="white-space:nowrap;">${new Date(r.ts).toLocaleString()}</td>
+        <td>${r.type}</td>
+        <td>${r.isp||""}</td>
+        <td>${r.city||"—"}</td>
+        <td>${r.value}</td>
+        <td style="color:var(--muted);font-size:12px;">${r.detail||"—"}</td>
+        <td style="max-width:260px;">${(r.comment||"").toString().replace(/</g,"&lt;")}</td>
+      </tr>`).join("")}
+    </tbody></table></div>`;
 }
 
 /* ---------- licensing ---------- */
@@ -768,7 +924,7 @@ async function renderReportPicker(){
   const qos = await fetchAll("qos_reports");
   const isps = [...new Set(qos.map(r=>r.isp))].sort();
   if(!isps.length){ el.innerHTML = `<div class="empty">No ratings recorded yet for this site — nothing to report on.</div>`; return; }
-  el.innerHTML = isps.map(isp=>`<button class="btn" style="margin:0 6px 6px 0;" onclick="openFullReport(${JSON.stringify(isp)})">${isp}</button>`).join("");
+  el.innerHTML = isps.map(isp=>`<button class="btn" style="margin:0 6px 6px 0;" onclick="openFullReport(${escAttr(JSON.stringify(isp))})">${isp}</button>`).join("");
 }
 async function openFullReport(isp){
   const [qos, status, speed, conv, ref] = await Promise.all([

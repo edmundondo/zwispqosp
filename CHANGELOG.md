@@ -7,6 +7,48 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.4.0] — 2026-09-16
+
+### Added
+- **Provider analytics is now a real drill-down, not just national averages.** A new filter row
+  lets you narrow every panel to one city/region and/or a time window (7/30/90 days/all time), and
+  every bar — a city, an ISP — is clickable to drill straight into it, cascading: click a city in
+  "Reports by city / region" to scope everything below to it, then click an ISP bar to scope
+  further.
+- New **"Reports by city / region"** card: raw report counts (QoS + status + speed combined) per
+  city, independent of any ISP filter — the fastest way to confirm testers in a given region are
+  actually getting reports through, before looking at any ISP-level number.
+- New **"Individual reports — last unit"** table: the literal underlying submissions behind every
+  average above — timestamp, ISP, city, the rating/status/speed value, connection/device detail
+  when a speed test carries it (connection type, device type, latency, jitter, packet loss), and
+  the tester's own comment. Newest first, filtered the same way as everything else on the tab,
+  capped to the latest 500 with a pointer to Raw CSV export for the rest.
+- Every bar in Provider analytics now shows its sample size (n) next to the value, so a 5★ average
+  from one report isn't read the same as a 5★ average from fifty.
+
+### Fixed
+- **Inline `onclick` handlers that pass a string argument via `JSON.stringify()` were silently
+  broken** whenever that string contained no quotes of its own but was embedded inside a
+  double-quoted HTML attribute — `onclick="fn(${JSON.stringify(str)})"` renders as
+  `onclick="fn("Some Value")"`, and the HTML parser closes the attribute at the first embedded
+  quote, mangling everything after it. Found live in the Benchmark reports tab's provider-picker
+  buttons (`openFullReport`) while building the drill-down above (which needed the same
+  string-argument pattern for its clickable bars). Added an `escAttr()` helper that HTML-entity-
+  escapes the `JSON.stringify()` output before embedding it, and applied it everywhere this
+  pattern is used, including the new drill-down's bars and filter pill.
+- Footer version badge said v0.3.3 while `<meta name="app-version">` already read 0.3.4 — both now
+  read v0.4.0.
+
+### Notes
+- Triggered by Ed's own framing: "I got some testers in the respective regions testing but I don't
+  see the results" — the underlying reports already carried a `city` (and, for speed tests that
+  ran the richer migration, connection/device/latency/jitter/packet-loss detail too), but this app
+  had never surfaced any of it below a single national-average bar per ISP. This change reaches
+  all the way down to the individual submitted report, not just a new aggregate cut.
+- Not yet ported to `bwispqosp`/`saispqosp` — same multi-tenant app, so the identical change should
+  land in both to avoid drift (see the `matokipedo-isp-tracker-qc` skill's parity-audit practice),
+  but Botswana/South Africa have no live tester data yet to drill into.
+
 ## [0.3.3] — 2026-09-10
 
 ### Fixed
