@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.4.1">
+<meta name="app-version" content="0.5.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -65,6 +65,9 @@
 
   .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px;}
   .stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .stat.stat-clickable{cursor:pointer;transition:border-color .12s;}
+  .stat.stat-clickable:hover{border-color:var(--accent2);}
+  .stat.stat-clickable .lbl .explorer-row-caret{margin-left:4px;}
   .stat .num{font-size:24px;font-weight:700;}
   .stat .lbl{font-size:11.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.03em;}
 
@@ -99,6 +102,21 @@
   .bar-row-clickable:hover{background:var(--panel2);}
   .bar-n{color:var(--muted);font-weight:400;}
   .pill.clear{cursor:pointer;background:rgba(124,156,255,.15);color:var(--accent2);}
+  /* ---------- Shared drill-down Explorer (breadcrumb navigation, added v0.5.0) ---------- */
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px;}
+  .card-head h2{margin:0;}
+  .explorer-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 0 14px;font-size:13px;}
+  .explorer-crumbs .crumb{cursor:pointer;color:var(--accent2);}
+  .explorer-crumbs .crumb:hover{text-decoration:underline;}
+  .explorer-crumbs .crumb.crumb-current{color:var(--text);font-weight:600;cursor:default;}
+  .explorer-crumbs .crumb.crumb-current:hover{text-decoration:none;}
+  .explorer-crumbs .crumb-sep{color:var(--muted);}
+  .explorer-list{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding-right:4px;}
+  .explorer-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--panel2);}
+  .explorer-row:hover{border-color:var(--accent2);}
+  .explorer-row-label{flex:1;font-weight:600;}
+  .explorer-row-caret{color:var(--muted);}
+  .explorer-table-wrap{max-height:380px;overflow:auto;}
   input.inline-input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-size:12px;width:100%;}
 
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
@@ -195,44 +213,18 @@
 
     <div class="panel" id="panel-providers">
       <div class="card">
-        <h2>Filter this drill-down</h2>
-        <div class="hint" style="margin:0 0 8px;">
-          Narrow every panel below to one region and/or time window — or just click any bar
-          (a city, an ISP) to drill straight into it.
+        <div class="card-head">
+          <h2>Provider analytics — drill down</h2>
+          <div id="providerTimeFilter"></div>
         </div>
-        <div id="providerFilters"></div>
-      </div>
-      <div class="card">
-        <h2>Reports by city / region</h2>
-        <div class="hint" style="margin:0 0 8px;">
-          Every QoS rating, status report and speed test, counted by where it came from — the
-          quickest way to confirm testers in a given region are actually getting through. Click a
-          city to filter everything below to it.
+        <div class="hint" style="margin:0 0 10px;">
+          Click a city, then a real area/suburb within it (sourced, not guessed — see
+          <a href="CHANGELOG.md" style="color:inherit;text-decoration:underline;">changelog</a>), then an
+          ISP — you land on that ISP's numbers plus the individual reports behind them. Every step
+          above is a breadcrumb: click any of them to come back out.
         </div>
-        <div id="providerCities"></div>
-      </div>
-      <div class="card">
-        <h2>QoS rating average</h2>
-        <div id="providerQos"></div>
-      </div>
-      <div class="card">
-        <h2>Status reliability (30 days, % reports = live)</h2>
-        <div id="providerReliability"></div>
-      </div>
-      <div class="card">
-        <h2>Speed test average (Mbps down)</h2>
-        <div id="providerSpeed"></div>
-      </div>
-      <div class="card">
-        <h2>Net conversions (gained − lost)</h2>
-        <div id="providerConversions"></div>
-      </div>
-      <div class="card">
-        <h2>Individual reports — last unit</h2>
-        <div class="hint" style="margin:0 0 8px;">
-          The actual submissions behind every average above — one row per report, newest first.
-        </div>
-        <div id="providerRawTable"></div>
+        <div id="providerCrumbs" class="explorer-crumbs"></div>
+        <div id="providerExplorerBody"></div>
       </div>
     </div>
 
@@ -243,35 +235,44 @@
         <div id="licenseForm"></div>
       </div>
       <div class="card">
-        <h2>Pipeline</h2>
+        <h2>Pipeline — drill down</h2>
+        <div class="hint" style="margin:0 0 10px;">Status → ISP → record. Click "Edit this record" to load it into the form above.</div>
+        <div id="licenseCrumbs" class="explorer-crumbs"></div>
         <div id="licenseTable"></div>
       </div>
     </div>
 
     <div class="panel" id="panel-reports">
       <div class="card">
-        <h2>Full benchmark report (paid-tier)</h2>
-        <div class="hint">
-          Same shape as the free public teaser, plus what the CTA promises: raw anonymized comments and a
-          keyword complaint-cluster tally. Opens in a new tab, printable to PDF.
+        <h2>Full benchmark report (paid-tier) — drill down</h2>
+        <div class="hint" style="margin:0 0 10px;">
+          Connection type → ISP → the full report (same shape as the free public teaser, plus raw
+          anonymized comments and a keyword complaint-cluster tally). Opens in a new tab, printable to PDF.
         </div>
+        <div id="reportCrumbs" class="explorer-crumbs"></div>
         <div id="reportPicker"></div>
       </div>
     </div>
 
     <div class="panel" id="panel-moderation">
       <div class="card">
-        <h2>Recent submissions</h2>
-        <div class="hint">Delete spam or abusive entries. This reads and writes with admin privileges — the public site never sees these controls.</div>
+        <h2>Recent submissions — drill down</h2>
+        <div class="hint" style="margin:0 0 10px;">
+          Delete spam or abusive entries. This reads and writes with admin privileges — the public site
+          never sees these controls. QoS/status/speed/conversions drill City → Area → ISP → rows; the
+          other tables (no real geography to drill through) stay a flat list.
+        </div>
         <div id="moderationTableSelect"></div>
+        <div id="moderationCrumbs" class="explorer-crumbs"></div>
         <div id="moderationTable"></div>
       </div>
     </div>
 
     <div class="panel" id="panel-translations">
       <div class="card">
-        <h2>Translation review queue</h2>
+        <h2>Translation review queue — drill down</h2>
         <div class="missing-lang-note" id="missingLangNote"></div>
+        <div id="translationCrumbs" class="explorer-crumbs"></div>
         <div id="translationQueue"></div>
       </div>
     </div>
@@ -308,7 +309,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.4.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.5.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -614,6 +615,9 @@ async function populateSiteSelect(){
 function wireSiteSelect(){
   document.getElementById("siteSelect").addEventListener("change", e=>{
     currentSite = e.target.value;
+    // A breadcrumb path from the previous site (a city/ISP that may not exist here) would
+    // otherwise persist and show an empty drill-down — reset every Explorer on site switch.
+    paPath = []; licPath = []; benchPath = []; modPath = []; transPath = [];
     loadActiveTab();
   });
 }
@@ -685,7 +689,23 @@ function barsHtml(entries, fmt, onClickFn){
   }).join("");
 }
 
-/* ---------- overview ---------- */
+/* ---------- overview: every tile is now a drill-down entry point (v0.5.0) ----------
+   Clicking a tile jumps straight to where that data lives and drills in, instead of just
+   showing a static number. QoS/status/speed/conversions all live in the Provider analytics
+   breadcrumb explorer; referral clicks and tester feedback have no real geography to drill
+   through, so they land on Moderation's flat table for that data instead of a fake hierarchy;
+   translations lands on that tab's language breadcrumb, reset to the top. */
+function goToTab(tabName){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  document.querySelector(`nav.tabs button[data-tab="${tabName}"]`).classList.add("active");
+  document.getElementById("panel-"+tabName).classList.add("active");
+  loadActiveTab();
+}
+function goToProviders(){ paPath = []; goToTab("providers"); }
+function goToModTable(table){ modTable = table; modPath = []; goToTab("moderation"); }
+function goToTranslations(){ transPath = []; goToTab("translations"); }
+
 async function renderOverview(){
   const el = document.getElementById("overviewStats");
   el.innerHTML = `<div class="loading">Loading…</div>`;
@@ -696,128 +716,145 @@ async function renderOverview(){
   ]);
   const netConv = conv.reduce((n,c)=>n + (c.to_isp?1:0) - (c.from_isp?1:0), 0);
   const stats = [
-    { num: qos.length, lbl: "QoS ratings" },
-    { num: status.length, lbl: "Status reports" },
-    { num: speed.length, lbl: "Speed tests" },
-    { num: conv.length, lbl: "Switch/signup events" },
-    { num: (netConv>=0?"+":"")+netConv, lbl: "Net conversions" },
-    { num: ref.length, lbl: "Referral clicks" },
-    { num: fb.length, lbl: "Tester feedback" },
-    { num: transPending.length, lbl: "Translations pending review" },
+    { num: qos.length, lbl: "QoS ratings", go: "goToProviders()" },
+    { num: status.length, lbl: "Status reports", go: "goToProviders()" },
+    { num: speed.length, lbl: "Speed tests", go: "goToProviders()" },
+    { num: conv.length, lbl: "Switch/signup events", go: "goToProviders()" },
+    { num: (netConv>=0?"+":"")+netConv, lbl: "Net conversions", go: "goToProviders()" },
+    { num: ref.length, lbl: "Referral clicks", go: `goToModTable('referral_clicks')` },
+    { num: fb.length, lbl: "Tester feedback", go: `goToModTable('tester_feedback')` },
+    { num: transPending.length, lbl: "Translations pending review", go: "goToTranslations()" },
   ];
-  el.innerHTML = stats.map(s=>`<div class="stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join("");
+  el.innerHTML = stats.map(s=>`<div class="stat stat-clickable" onclick="${s.go}" title="Click to drill into this data">
+    <div class="num">${s.num}</div><div class="lbl">${s.lbl} <span class="explorer-row-caret">›</span></div>
+  </div>`).join("");
 }
 
-/* ---------- provider analytics (drill-down: region/time filters, clickable bars, raw units) ----------
-   Ed's own framing: the reports his testers submit already carry a `city` (and, for speed tests
-   that ran the richer migration, connection_type/device_type/latency/jitter/packet-loss too) —
-   but until this feature this app only ever showed a single national-average bar per ISP, so none
-   of that regional/per-submission detail was reachable here. This adds a city+time filter, makes
-   every bar clickable to drill into it, and surfaces the individual report rows those bars are
-   built from, so "I have testers in the field but don't see the results" has an actual answer. */
-let paCityFilter = "";  // "" = all cities/regions
-let paIspFilter = "";   // "" = all ISPs; set by clicking a bar
+/* ---------- provider analytics: unified breadcrumb drill-down (v0.5.0) ----------
+   Replaces the v0.4.x filter+stacked-bars layout (six separate cards, scrolled through one
+   by one) with a single condensed card: pick a city, then a real, sourced area/suburb within
+   it (see AREAS_RESEARCH_NOTE below and the changelog), then an ISP — and land on that ISP's
+   numbers plus the individual reports behind them, the literal "last unit". Every step is a
+   breadcrumb, and every breadcrumb is clickable to jump straight back out — Ed's "always come
+   out" requirement — instead of scrolling back up through a stack of cards. */
+let paPath = [];        // [] | [{level:'city',...}] | [...,{level:'area',...}] | [...,{level:'isp',...}]
 let paDaysFilter = 0;   // 0 = all time, else last N days
 
-function paFilterRows(rows, days, city){
-  const cutoff = days>0 ? Date.now() - days*24*60*60*1000 : 0;
-  return rows.filter(r=>{
-    if(cutoff && new Date(r.created_at).getTime() < cutoff) return false;
-    if(city && r.city !== city) return false;
-    return true;
-  });
+function paCityOf(){ const c = paPath.find(p=>p.level==='city'); return c ? c.value : null; }
+function paAreaStep(){ return paPath.find(p=>p.level==='area'); } // undefined = not chosen yet
+function paIspOf(){ const i = paPath.find(p=>p.level==='isp'); return i ? i.value : null; }
+
+function paGoto(idx){ paPath = idx < 0 ? [] : paPath.slice(0, idx+1); renderProviderAnalytics(); }
+function paDrillCity(city){ paPath = [{level:'city', value:city, label:city}]; renderProviderAnalytics(); }
+function paDrillArea(raw){
+  const value = raw === "__ALL__" ? null : (raw === "__NONE__" ? "" : raw);
+  const label = raw === "__ALL__" ? `All of ${paCityOf()}` : (raw === "__NONE__" ? "No area given" : raw);
+  paPath = [paPath[0], {level:'area', value, label}];
+  renderProviderAnalytics();
 }
-function renderProviderFilters(cities){
-  const el = document.getElementById("providerFilters");
-  const activeIsp = paIspFilter ? `<div class="field"><label>ISP (from a bar click)</label>
-      <div class="pill clear" onclick="paSetIsp(${escAttr(JSON.stringify(paIspFilter))})">${paIspFilter} ✕</div></div>` : "";
-  const resetBtn = (paCityFilter||paIspFilter||paDaysFilter)
-    ? `<div class="field"><label>&nbsp;</label><button class="btn" type="button" onclick="paResetFilters()">Reset filters</button></div>` : "";
-  el.innerHTML = `<div class="filter-row">
-    <div class="field"><label>City / region</label>
-      <select class="status-edit" id="paCityFilter">
-        <option value="">All cities</option>
-        ${cities.map(c=>`<option value="${c}" ${c===paCityFilter?"selected":""}>${c}</option>`).join("")}
-      </select>
-    </div>
-    <div class="field"><label>Time window</label>
-      <select class="status-edit" id="paDaysFilter">
-        <option value="0" ${paDaysFilter===0?"selected":""}>All time</option>
-        <option value="7" ${paDaysFilter===7?"selected":""}>Last 7 days</option>
-        <option value="30" ${paDaysFilter===30?"selected":""}>Last 30 days</option>
-        <option value="90" ${paDaysFilter===90?"selected":""}>Last 90 days</option>
-      </select>
-    </div>
-    ${activeIsp}${resetBtn}
+function paDrillIsp(isp){ paPath = [paPath[0], paPath[1], {level:'isp', value:isp, label:isp}]; renderProviderAnalytics(); }
+function paSetDays(v){ paDaysFilter = parseInt(v,10)||0; renderProviderAnalytics(); }
+
+function renderProviderTimeFilter(){
+  const el = document.getElementById("providerTimeFilter");
+  el.innerHTML = `<select class="status-edit" id="paDaysSel">
+    <option value="0" ${paDaysFilter===0?"selected":""}>All time</option>
+    <option value="7" ${paDaysFilter===7?"selected":""}>Last 7 days</option>
+    <option value="30" ${paDaysFilter===30?"selected":""}>Last 30 days</option>
+    <option value="90" ${paDaysFilter===90?"selected":""}>Last 90 days</option>
+  </select>`;
+  document.getElementById("paDaysSel").addEventListener("change", e=>paSetDays(e.target.value));
+}
+function explorerRow(label, n, onclickExpr){
+  return `<div class="explorer-row" onclick="${onclickExpr}">
+    <span class="explorer-row-label">${label}</span>${n!=null?`<span class="bar-n">(${n})</span>`:""}<span class="explorer-row-caret">›</span>
   </div>`;
-  document.getElementById("paCityFilter").addEventListener("change", e=>{ paCityFilter = e.target.value; renderProviderAnalytics(); });
-  document.getElementById("paDaysFilter").addEventListener("change", e=>{ paDaysFilter = parseInt(e.target.value,10)||0; renderProviderAnalytics(); });
 }
-function paSetCity(city){ paCityFilter = (paCityFilter===city) ? "" : city; renderProviderAnalytics(); }
-function paSetIsp(isp){ paIspFilter = (paIspFilter===isp) ? "" : isp; renderProviderAnalytics(); }
-function paResetFilters(){ paCityFilter=""; paIspFilter=""; paDaysFilter=0; renderProviderAnalytics(); }
 
 async function renderProviderAnalytics(){
-  ["providerCities","providerQos","providerReliability","providerSpeed","providerConversions","providerRawTable"].forEach(id=>{
-    document.getElementById(id).innerHTML = `<div class="loading">Loading…</div>`;
-  });
+  renderProviderTimeFilter();
+  const bodyEl = document.getElementById("providerExplorerBody");
+  bodyEl.innerHTML = `<div class="loading">Loading…</div>`;
+
   const [qosAll, statusAll, speedAll, convAll] = await Promise.all([
     fetchAll("qos_reports"), fetchAll("status_reports"), fetchAll("speed_reports"), fetchAll("conversions")
   ]);
+  const cutoff = paDaysFilter>0 ? Date.now() - paDaysFilter*24*60*60*1000 : 0;
+  const inWindow = r => !cutoff || new Date(r.created_at).getTime() >= cutoff;
+  const qos = qosAll.filter(inWindow), status = statusAll.filter(inWindow), speed = speedAll.filter(inWindow), conv = convAll.filter(inWindow);
 
-  const cities = [...new Set([...qosAll, ...statusAll, ...speedAll, ...convAll].map(r=>r.city).filter(Boolean))].sort();
-  renderProviderFilters(cities);
+  const city = paCityOf(), areaStep = paAreaStep(), isp = paIspOf();
 
-  const qos = paFilterRows(qosAll, paDaysFilter, paCityFilter);
-  const status = paFilterRows(statusAll, paDaysFilter, paCityFilter);
-  const speed = paFilterRows(speedAll, paDaysFilter, paCityFilter);
-  const conv = paFilterRows(convAll, paDaysFilter, paCityFilter);
+  const crumbs = [{label:"All reports", idx:-1}, ...paPath.map((p,i)=>({label:p.label, idx:i}))];
+  document.getElementById("providerCrumbs").innerHTML = crumbs.map((c,i)=>{
+    const isLast = i===crumbs.length-1;
+    return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="paGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
+  }).join("");
 
-  // Reports by city — raw activity counts, independent of any ISP filter, so "no results" always
-  // means "no reports for this filter", never "hidden behind an ISP you didn't pick."
-  const cityCounts = {};
-  [...qos, ...status, ...speed].forEach(r=>{ const c = r.city || "Unknown"; cityCounts[c] = (cityCounts[c]||0) + 1; });
-  const cityEntries = Object.entries(cityCounts).map(([name,val])=>({ name, val })).sort((a,b)=>b.val-a.val);
-  document.getElementById("providerCities").innerHTML = barsHtml(cityEntries, v=>String(v), "paSetCity");
+  if(!city){
+    const counts = {};
+    [...qos,...status,...speed].forEach(r=>{ const c=r.city||"Unknown"; counts[c]=(counts[c]||0)+1; });
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    bodyEl.innerHTML = !entries.length ? `<div class="empty">No reports yet for this time window.</div>`
+      : `<div class="explorer-list">${entries.map(([name,n])=>explorerRow(name, n, `paDrillCity(${escAttr(JSON.stringify(name))})`)).join("")}</div>`;
+    return;
+  }
 
-  const ispQos = paIspFilter ? qos.filter(r=>r.isp===paIspFilter) : qos;
-  const qosByIsp = groupBy(ispQos, "isp");
-  const qosEntries = Object.entries(qosByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.stars)), n: rows.length }))
-    .sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerQos").innerHTML = barsHtml(qosEntries, v=>v.toFixed(1)+"★", "paSetIsp");
+  if(!areaStep){
+    const rows = [...qos,...status,...speed].filter(r=>r.city===city);
+    const counts = {}; rows.forEach(r=>{ const a=(r.area||"").trim(); counts[a||"__NONE__"]=(counts[a||"__NONE__"]||0)+1; });
+    const total = rows.length;
+    const areaEntries = Object.entries(counts).filter(([k])=>k!=="__NONE__").sort((a,b)=>b[1]-a[1]);
+    const noneCount = counts["__NONE__"]||0;
+    bodyEl.innerHTML = `<div class="explorer-list">
+      ${explorerRow(`All of ${city}`, total, `paDrillArea('__ALL__')`)}
+      ${areaEntries.map(([name,n])=>explorerRow(name, n, `paDrillArea(${escAttr(JSON.stringify(name))})`)).join("")}
+      ${noneCount ? explorerRow("No area given", noneCount, `paDrillArea('__NONE__')`) : ""}
+    </div>
+    ${(!areaEntries.length && !noneCount) ? `<div class="empty" style="margin-top:8px;">No reports for ${city} in this time window.</div>` : ""}`;
+    return;
+  }
 
+  const areaVal = areaStep.value; // null = all areas in city, "" = no-area bucket, else a specific area name
+  const matchesArea = r => areaVal===null ? true : ((r.area||"") === areaVal);
+
+  if(!isp){
+    const rows = [...qos,...status,...speed].filter(r=>r.city===city && matchesArea(r));
+    const counts = {}; rows.forEach(r=>{ counts[r.isp]=(counts[r.isp]||0)+1; });
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    bodyEl.innerHTML = !entries.length ? `<div class="empty">No reports for this area yet.</div>`
+      : `<div class="explorer-list">${entries.map(([name,n])=>explorerRow(name, n, `paDrillIsp(${escAttr(JSON.stringify(name))})`)).join("")}</div>`;
+    return;
+  }
+
+  // Leaf level: this city (+area) + ISP — the numbers, plus the individual reports behind them.
+  const qosHere = qos.filter(r=>r.city===city && matchesArea(r) && r.isp===isp);
+  const statusHere = status.filter(r=>r.city===city && matchesArea(r) && r.isp===isp);
   const cutoff30 = Date.now() - 30*24*60*60*1000;
-  const ispStatus = (paIspFilter ? status.filter(r=>r.isp===paIspFilter) : status).filter(r=>new Date(r.created_at).getTime()>=cutoff30);
-  const statusByIsp = groupBy(ispStatus, "isp");
-  const relEntries = Object.entries(statusByIsp).map(([isp,rows])=>({
-    name: isp, val: rows.length ? (rows.filter(r=>r.status==="live").length/rows.length*100) : null, n: rows.length
-  })).sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerReliability").innerHTML = barsHtml(relEntries, v=>v.toFixed(0)+"%", "paSetIsp");
+  const statusHere30 = statusHere.filter(r=>new Date(r.created_at).getTime()>=cutoff30);
+  const speedHere = speed.filter(r=>r.city===city && matchesArea(r) && r.isp===isp);
+  const convHere = conv.filter(c=>c.city===city && matchesArea(c) && (c.to_isp===isp || c.from_isp===isp));
+  const qosAvg = avg(qosHere.map(r=>r.stars));
+  const relPct = statusHere30.length ? statusHere30.filter(r=>r.status==="live").length/statusHere30.length*100 : null;
+  const speedAvg = avg(speedHere.map(r=>r.download_mbps).filter(v=>v!=null));
+  const netConv = convHere.reduce((n,c)=> n + (c.to_isp===isp?1:0) - (c.from_isp===isp?1:0), 0);
 
-  const ispSpeed = paIspFilter ? speed.filter(r=>r.isp===paIspFilter) : speed;
-  const speedByIsp = groupBy(ispSpeed, "isp");
-  const speedEntries = Object.entries(speedByIsp).map(([isp,rows])=>({ name: isp, val: avg(rows.map(r=>r.download_mbps).filter(v=>v!=null)), n: rows.length }))
-    .sort((a,b)=>(b.val||0)-(a.val||0));
-  document.getElementById("providerSpeed").innerHTML = barsHtml(speedEntries, v=>v.toFixed(1)+" Mbps", "paSetIsp");
-
-  const ispConv = paIspFilter ? conv.filter(c=>c.to_isp===paIspFilter||c.from_isp===paIspFilter) : conv;
-  const convNet = {};
-  ispConv.forEach(c=>{
-    if(c.to_isp) convNet[c.to_isp] = (convNet[c.to_isp]||0) + 1;
-    if(c.from_isp) convNet[c.from_isp] = (convNet[c.from_isp]||0) - 1;
-  });
-  const convEntries = Object.entries(convNet).map(([isp,n])=>({ name: isp, val: n })).sort((a,b)=>b.val-a.val);
-  document.getElementById("providerConversions").innerHTML = barsHtml(convEntries, v=>(v>=0?"+":"")+v, "paSetIsp");
-
-  renderProviderRawTable(qos, status, speed);
+  const metricsHtml = `<div class="stats" style="margin-bottom:14px;">
+    <div class="stat"><div class="num">${qosAvg!=null?qosAvg.toFixed(1)+"★":"—"}</div><div class="lbl">QoS avg (${qosHere.length})</div></div>
+    <div class="stat"><div class="num">${relPct!=null?relPct.toFixed(0)+"%":"—"}</div><div class="lbl">Live, 30d (${statusHere30.length})</div></div>
+    <div class="stat"><div class="num">${speedAvg!=null?speedAvg.toFixed(1)+" Mbps":"—"}</div><div class="lbl">Avg download (${speedHere.length})</div></div>
+    <div class="stat"><div class="num">${(netConv>=0?"+":"")+netConv}</div><div class="lbl">Net conversions</div></div>
+  </div>`;
+  bodyEl.innerHTML = metricsHtml + renderRawReportsHtml(qosHere, statusHere, speedHere, { showArea: areaVal===null });
 }
 
-/* The literal "last unit" of this app's data — one row per submitted report, not an average. */
-function renderProviderRawTable(qos, status, speed){
-  const el = document.getElementById("providerRawTable");
+/* The literal "last unit" of this app's data — one row per submitted report, not an average.
+   Shared by the provider-analytics leaf level and (from v0.5.0) the Moderation drill-down. */
+function renderRawReportsHtml(qos, status, speed, opts){
+  opts = opts || {};
   let rows = [
-    ...qos.map(r=>({ ts:r.created_at, type:"QoS rating", isp:r.isp, city:r.city, value:`${r.stars}★`, detail:"", comment:r.comment })),
-    ...status.map(r=>({ ts:r.created_at, type:"Status", isp:r.isp, city:r.city, value:r.status, detail:"", comment:r.comment })),
+    ...qos.map(r=>({ ts:r.created_at, type:"QoS rating", isp:r.isp, city:r.city, area:r.area, value:`${r.stars}★`, detail:"", comment:r.comment })),
+    ...status.map(r=>({ ts:r.created_at, type:"Status", isp:r.isp, city:r.city, area:r.area, value:r.status, detail:"", comment:r.comment })),
     ...speed.map(r=>{
       const detailBits = [
         r.connection_type, r.device_type,
@@ -826,33 +863,31 @@ function renderProviderRawTable(qos, status, speed){
         r.packet_loss_pct!=null ? `${Number(r.packet_loss_pct).toFixed(1)}% loss` : null
       ].filter(Boolean);
       return {
-        ts:r.created_at, type:"Speed test", isp:r.isp, city:r.city,
+        ts:r.created_at, type:"Speed test", isp:r.isp, city:r.city, area:r.area,
         value: `${r.download_mbps!=null?Number(r.download_mbps).toFixed(1):"—"}↓ / ${r.upload_mbps!=null?Number(r.upload_mbps).toFixed(1):"—"}↑ Mbps`,
         detail: detailBits.join(" · "), comment:r.comment
       };
     })
   ];
-  if(paIspFilter) rows = rows.filter(r=>r.isp===paIspFilter);
   rows.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
   const total = rows.length;
   rows = rows.slice(0, 500);
-  if(!total){ el.innerHTML = `<div class="empty">No individual reports match this filter yet.</div>`; return; }
-  el.innerHTML = `
+  if(!total) return `<div class="empty">No individual reports here yet.</div>`;
+  return `
     <div class="hint" style="margin:0 0 10px;">
       Showing ${rows.length} of ${total} matching report${total===1?"":"s"}, newest first — the actual
-      submissions behind the averages above. For everything unfiltered, use Raw CSV export.
+      submissions behind the numbers above. For everything unfiltered, use Raw CSV export.
     </div>
-    <div style="overflow-x:auto;"><table><thead><tr>
-      <th>When</th><th>Type</th><th>ISP</th><th>City</th><th>Value</th><th>Test detail</th><th>Comment</th>
+    <div class="explorer-table-wrap"><table><thead><tr>
+      <th>When</th><th>Type</th>${opts.showArea?"<th>Area</th>":""}<th>Value</th><th>Test detail</th><th>Comment</th>
     </tr></thead><tbody>
       ${rows.map(r=>`<tr>
         <td style="white-space:nowrap;">${new Date(r.ts).toLocaleString()}</td>
         <td>${r.type}</td>
-        <td>${r.isp||""}</td>
-        <td>${r.city||"—"}</td>
+        ${opts.showArea?`<td>${r.area||"—"}</td>`:""}
         <td>${r.value}</td>
         <td style="color:var(--muted);font-size:12px;">${r.detail||"—"}</td>
-        <td style="max-width:260px;">${(r.comment||"").toString().replace(/</g,"&lt;")}</td>
+        <td style="max-width:220px;">${(r.comment||"").toString().replace(/</g,"&lt;")}</td>
       </tr>`).join("")}
     </tbody></table></div>`;
 }
@@ -878,7 +913,7 @@ async function renderLicensing(){
     <div class="msg" id="licMsg"></div>
   `;
   document.getElementById("licSaveBtn").addEventListener("click", saveLicense);
-  await refreshLicenseTable();
+  await renderLicensingExplorer();
 }
 async function saveLicense(){
   const isp = document.getElementById("licIsp").value.trim();
@@ -897,34 +932,121 @@ async function saveLicense(){
   const { error } = await supa.from("provider_licenses").upsert([row], { onConflict: "site,isp" });
   if(error){ msg.className="msg error"; msg.textContent = error.message; return; }
   msg.className="msg ok"; msg.textContent="Saved.";
-  await refreshLicenseTable();
-}
-async function refreshLicenseTable(){
-  const el = document.getElementById("licenseTable");
-  el.innerHTML = `<div class="loading">Loading…</div>`;
-  const { data, error } = await supa.from("provider_licenses").select("*").eq("site", currentSite).order("updated_at",{ascending:false});
-  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
-  if(!data || !data.length){ el.innerHTML = `<div class="empty">No licensing records yet for this site.</div>`; return; }
-  el.innerHTML = `<table><thead><tr><th>ISP</th><th>Status</th><th>Contact</th><th>Fee</th><th>Renews</th><th>Notes</th></tr></thead><tbody>
-    ${data.map(r=>`<tr>
-      <td>${r.isp}</td>
-      <td><span class="pill ${r.status}">${r.status}</span></td>
-      <td>${r.contact_name||""}${r.contact_email?` <span style="color:var(--muted);">(${r.contact_email})</span>`:""}</td>
-      <td>${r.monthly_fee_usd!=null ? "$"+Number(r.monthly_fee_usd).toFixed(2) : "—"}</td>
-      <td>${r.renews_at||"—"}</td>
-      <td style="max-width:220px;">${r.notes||""}</td>
-    </tr>`).join("")}
-  </tbody></table>`;
+  await renderLicensingExplorer();
 }
 
-/* ---------- full benchmark reports ---------- */
+/* ---------- licensing pipeline: breadcrumb drill-down (v0.5.0) ----------
+   Status → ISP → record, replacing the single flat pipeline table so a site with a long
+   pipeline doesn't turn into a scroll-through-everything list. One record per (site, isp)
+   (upsert's own conflict key), so there's no ambiguity drilling ISP → record. */
+let licPath = [];
+let licRowsCache = [];
+const LIC_STATUSES = ["prospect","contacted","trial","active","lapsed","declined"];
+function licGoto(idx){ licPath = idx<0?[]:licPath.slice(0,idx+1); renderLicensingExplorer(); }
+function licDrillStatus(status){ licPath = [{level:'status', value:status, label:status}]; renderLicensingExplorer(); }
+function licDrillIsp(isp){ licPath = [licPath[0], {level:'isp', value:isp, label:isp}]; renderLicensingExplorer(); }
+function licLoadIntoForm(isp){
+  const rec = licRowsCache.find(r=>r.isp===isp);
+  document.getElementById("licIsp").value = isp;
+  if(rec){
+    document.getElementById("licStatus").value = rec.status || "prospect";
+    document.getElementById("licContactName").value = rec.contact_name || "";
+    document.getElementById("licContactEmail").value = rec.contact_email || "";
+    document.getElementById("licFee").value = rec.monthly_fee_usd ?? "";
+    document.getElementById("licRenews").value = rec.renews_at || "";
+    document.getElementById("licNotes").value = rec.notes || "";
+  }
+  document.getElementById("licenseForm").scrollIntoView({behavior:"smooth", block:"start"});
+}
+async function renderLicensingExplorer(){
+  const bodyEl = document.getElementById("licenseTable");
+  bodyEl.innerHTML = `<div class="loading">Loading…</div>`;
+  const { data, error } = await supa.from("provider_licenses").select("*").eq("site", currentSite).order("updated_at",{ascending:false});
+  if(error){ bodyEl.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+  licRowsCache = data || [];
+
+  const crumbs = [{label:"All statuses", idx:-1}, ...licPath.map((p,i)=>({label:p.label, idx:i}))];
+  document.getElementById("licenseCrumbs").innerHTML = crumbs.map((c,i)=>{
+    const isLast = i===crumbs.length-1;
+    return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="licGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
+  }).join("");
+
+  const statusStep = licPath.find(p=>p.level==='status');
+  const ispStep = licPath.find(p=>p.level==='isp');
+
+  if(!statusStep){
+    if(!licRowsCache.length){ bodyEl.innerHTML = `<div class="empty">No licensing records yet for this site.</div>`; return; }
+    const counts = {}; licRowsCache.forEach(r=>{ counts[r.status]=(counts[r.status]||0)+1; });
+    bodyEl.innerHTML = `<div class="explorer-list">${LIC_STATUSES.filter(s=>counts[s]).map(s=>
+      explorerRow(s, counts[s], `licDrillStatus(${escAttr(JSON.stringify(s))})`)).join("")}</div>`;
+    return;
+  }
+
+  if(!ispStep){
+    const inStatus = licRowsCache.filter(r=>r.status===statusStep.value);
+    bodyEl.innerHTML = !inStatus.length ? `<div class="empty">No records with this status anymore.</div>` :
+      `<div class="explorer-list">${inStatus.map(r=>explorerRow(r.isp, null, `licDrillIsp(${escAttr(JSON.stringify(r.isp))})`)).join("")}</div>`;
+    return;
+  }
+
+  const rec = licRowsCache.find(r=>r.isp===ispStep.value);
+  if(!rec){ bodyEl.innerHTML = `<div class="empty">That record changed status or was removed — <span class="crumb" style="display:inline;" onclick="licGoto(-1)">back to all statuses</span>.</div>`; return; }
+  bodyEl.innerHTML = `
+    <div class="stats" style="margin-bottom:14px;">
+      <div class="stat"><div class="num"><span class="pill ${rec.status}">${rec.status}</span></div><div class="lbl">Status</div></div>
+      <div class="stat"><div class="num">${rec.monthly_fee_usd!=null?"$"+Number(rec.monthly_fee_usd).toFixed(2):"—"}</div><div class="lbl">Monthly fee</div></div>
+      <div class="stat"><div class="num">${rec.renews_at||"—"}</div><div class="lbl">Renews</div></div>
+    </div>
+    <table><tbody>
+      <tr><th>Contact</th><td>${rec.contact_name||"—"}${rec.contact_email?` <span style="color:var(--muted);">(${rec.contact_email})</span>`:""}</td></tr>
+      <tr><th>Notes</th><td style="max-width:400px;">${rec.notes||"—"}</td></tr>
+      <tr><th>Last updated</th><td>${rec.updated_at ? new Date(rec.updated_at).toLocaleString() : "—"}</td></tr>
+    </tbody></table>
+    <button class="btn primary" style="width:auto;margin-top:12px;" onclick="licLoadIntoForm(${escAttr(JSON.stringify(rec.isp))})">Edit this record ↑</button>
+  `;
+}
+
+/* ---------- full benchmark reports: breadcrumb drill-down (v0.5.0) ----------
+   Connection type → ISP → the full report (still opened in a new tab — it's a standalone,
+   printable document, not something to cram into this card). Type comes from
+   PROVIDER_DIRECTORY; an ISP with ratings but no directory entry lands in "Other / unlisted"
+   rather than being silently dropped. */
+let benchPath = [];
+function benchGoto(idx){ benchPath = idx<0?[]:benchPath.slice(0,idx+1); renderReportPicker(); }
+function benchDrillType(type){ benchPath = [{level:'type', value:type, label:type}]; renderReportPicker(); }
+
 async function renderReportPicker(){
   const el = document.getElementById("reportPicker");
   el.innerHTML = `<div class="loading">Loading provider list…</div>`;
   const qos = await fetchAll("qos_reports");
   const isps = [...new Set(qos.map(r=>r.isp))].sort();
+
+  const crumbs = [{label:"All connection types", idx:-1}, ...benchPath.map((p,i)=>({label:p.label, idx:i}))];
+  document.getElementById("reportCrumbs").innerHTML = crumbs.map((c,i)=>{
+    const isLast = i===crumbs.length-1;
+    return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="benchGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
+  }).join("");
+
   if(!isps.length){ el.innerHTML = `<div class="empty">No ratings recorded yet for this site — nothing to report on.</div>`; return; }
-  el.innerHTML = isps.map(isp=>`<button class="btn" style="margin:0 6px 6px 0;" onclick="openFullReport(${escAttr(JSON.stringify(isp))})">${isp}</button>`).join("");
+
+  const directory = PROVIDER_DIRECTORY[currentSite] || [];
+  const typeOf = isp => (directory.find(d=>d.name===isp) || {}).type || "Other / unlisted";
+  const typeStep = benchPath.find(p=>p.level==='type');
+
+  if(!typeStep){
+    const counts = {};
+    isps.forEach(isp=>{ const t = typeOf(isp); counts[t]=(counts[t]||0)+1; });
+    el.innerHTML = `<div class="explorer-list">${Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([t,n])=>
+      explorerRow(t, n, `benchDrillType(${escAttr(JSON.stringify(t))})`)).join("")}</div>`;
+    return;
+  }
+
+  const inType = isps.filter(isp=>typeOf(isp)===typeStep.value);
+  el.innerHTML = !inType.length ? `<div class="empty">No ISPs of this type have ratings yet.</div>` :
+    `<div class="explorer-list">${inType.map(isp=>`
+    <div class="explorer-row" onclick="openFullReport(${escAttr(JSON.stringify(isp))})">
+      <span class="explorer-row-label">${isp}</span><span class="explorer-row-meta" style="color:var(--muted);font-size:12px;">full report ↗</span>
+    </div>`).join("")}</div>`;
 }
 async function openFullReport(isp){
   const [qos, status, speed, conv, ref] = await Promise.all([
@@ -1014,27 +1136,107 @@ async function openFullReport(isp){
   win.document.open(); win.document.write(html); win.document.close();
 }
 
-/* ---------- moderation ---------- */
+/* ---------- moderation: breadcrumb drill-down for geo tables (v0.5.0) ----------
+   qos_reports/status_reports/speed_reports/conversions have a real City → Area → ISP
+   hierarchy (same data as Provider analytics), so moderation drills through it the same
+   way — landing on the actual deletable rows instead of a single long flat table. The
+   other three tables (referral_clicks, tester_feedback, translations) have no comparable
+   geography to drill through, so they keep the flat list rather than a fake hierarchy. */
 let modTable = "qos_reports";
+let modPath = [];
+const GEO_MOD_TABLES = new Set(["qos_reports","status_reports","speed_reports","conversions"]);
+
 async function renderModeration(){
   const selEl = document.getElementById("moderationTableSelect");
   selEl.innerHTML = `<select class="status-edit" id="modTableSelect">
     ${REPORT_TABLES.map(t=>`<option value="${t}" ${t===modTable?"selected":""}>${t}</option>`).join("")}
   </select>`;
-  document.getElementById("modTableSelect").addEventListener("change", e=>{ modTable = e.target.value; refreshModerationTable(); });
+  document.getElementById("modTableSelect").addEventListener("change", e=>{ modTable = e.target.value; modPath = []; refreshModerationTable(); });
   await refreshModerationTable();
 }
-async function refreshModerationTable(){
-  const el = document.getElementById("moderationTable");
-  el.innerHTML = `<div class="loading">Loading…</div>`;
-  const { data, error } = await supa.from(modTable).select("*").eq("site", currentSite).order("created_at",{ascending:false}).limit(200);
-  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
-  if(!data || !data.length){ el.innerHTML = `<div class="empty">Nothing recorded yet.</div>`; return; }
+function modGoto(idx){ modPath = idx<0?[]:modPath.slice(0,idx+1); refreshModerationTable(); }
+function modDrillCity(city){ modPath = [{level:'city', value:city, label:city}]; refreshModerationTable(); }
+function modDrillArea(raw){
+  const value = raw==="__ALL__"?null:(raw==="__NONE__"?"":raw);
+  const label = raw==="__ALL__"?`All of ${modPath[0].value}`:(raw==="__NONE__"?"No area given":raw);
+  modPath = [modPath[0], {level:'area', value, label}];
+  refreshModerationTable();
+}
+function modDrillIsp(isp){ modPath = [modPath[0], modPath[1], {level:'isp', value:isp, label:isp}]; refreshModerationTable(); }
+
+function modFlatTableHtml(data){
   const cols = Object.keys(data[0]).filter(c=>!["site"].includes(c));
-  el.innerHTML = `<div style="overflow-x:auto;"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>
+  return `<div class="explorer-table-wrap"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>
     ${data.map(row=>`<tr>${cols.map(c=>`<td>${row[c]===null||row[c]===undefined?"":String(row[c]).slice(0,140)}</td>`).join("")}
       <td><button class="btn danger" onclick="deleteModRow(${escAttr(JSON.stringify(row.id))})">Delete</button></td></tr>`).join("")}
   </tbody></table></div>`;
+}
+
+async function refreshModerationTable(){
+  const el = document.getElementById("moderationTable");
+  const crumbsEl = document.getElementById("moderationCrumbs");
+  el.innerHTML = `<div class="loading">Loading…</div>`;
+
+  if(!GEO_MOD_TABLES.has(modTable)){
+    crumbsEl.innerHTML = "";
+    const { data, error } = await supa.from(modTable).select("*").eq("site", currentSite).order("created_at",{ascending:false}).limit(200);
+    if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+    if(!data || !data.length){ el.innerHTML = `<div class="empty">Nothing recorded yet.</div>`; return; }
+    el.innerHTML = modFlatTableHtml(data);
+    return;
+  }
+
+  const { data, error } = await supa.from(modTable).select("*").eq("site", currentSite).order("created_at",{ascending:false}).limit(2000);
+  if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
+  const rows = data || [];
+
+  const crumbs = [{label:"All cities", idx:-1}, ...modPath.map((p,i)=>({label:p.label, idx:i}))];
+  crumbsEl.innerHTML = crumbs.map((c,i)=>{
+    const isLast = i===crumbs.length-1;
+    return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="modGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
+  }).join("");
+
+  const cityStep = modPath.find(p=>p.level==='city');
+  const areaStep = modPath.find(p=>p.level==='area');
+  const ispStep = modPath.find(p=>p.level==='isp');
+  const rowIsp = r => modTable==="conversions" ? (r.to_isp || r.from_isp || "Unknown") : r.isp;
+
+  if(!cityStep){
+    const counts = {}; rows.forEach(r=>{ const c=r.city||"Unknown"; counts[c]=(counts[c]||0)+1; });
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    el.innerHTML = !entries.length ? `<div class="empty">Nothing recorded yet.</div>` :
+      `<div class="explorer-list">${entries.map(([name,n])=>explorerRow(name,n,`modDrillCity(${escAttr(JSON.stringify(name))})`)).join("")}</div>`;
+    return;
+  }
+
+  if(!areaStep){
+    const inCity = rows.filter(r=>r.city===cityStep.value);
+    const counts = {}; inCity.forEach(r=>{ const a=(r.area||"").trim(); counts[a||"__NONE__"]=(counts[a||"__NONE__"]||0)+1; });
+    const total = inCity.length;
+    const areaEntries = Object.entries(counts).filter(([k])=>k!=="__NONE__").sort((a,b)=>b[1]-a[1]);
+    const noneCount = counts["__NONE__"]||0;
+    el.innerHTML = `<div class="explorer-list">
+      ${explorerRow(`All of ${cityStep.value}`, total, `modDrillArea('__ALL__')`)}
+      ${areaEntries.map(([name,n])=>explorerRow(name,n,`modDrillArea(${escAttr(JSON.stringify(name))})`)).join("")}
+      ${noneCount ? explorerRow("No area given", noneCount, `modDrillArea('__NONE__')`) : ""}
+    </div>`;
+    return;
+  }
+
+  const areaVal = areaStep.value;
+  const matchesArea = r => areaVal===null ? true : ((r.area||"")===areaVal);
+
+  if(!ispStep){
+    const inArea = rows.filter(r=>r.city===cityStep.value && matchesArea(r));
+    const counts = {}; inArea.forEach(r=>{ const isp = rowIsp(r)||"Unknown"; counts[isp]=(counts[isp]||0)+1; });
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    el.innerHTML = !entries.length ? `<div class="empty">No rows for this area.</div>` :
+      `<div class="explorer-list">${entries.map(([name,n])=>explorerRow(name,n,`modDrillIsp(${escAttr(JSON.stringify(name))})`)).join("")}</div>`;
+    return;
+  }
+
+  const leafRows = rows.filter(r=>r.city===cityStep.value && matchesArea(r) && (rowIsp(r)||"Unknown")===ispStep.value);
+  el.innerHTML = !leafRows.length ? `<div class="empty">No rows here anymore.</div>` : modFlatTableHtml(leafRows);
 }
 async function deleteModRow(id){
   if(!confirm("Delete this row permanently?")) return;
@@ -1043,7 +1245,12 @@ async function deleteModRow(id){
   await refreshModerationTable();
 }
 
-/* ---------- translations ---------- */
+/* ---------- translations: breadcrumb drill-down (v0.5.0) ----------
+   Language → suggestions queue for that language, so a site with many community languages
+   shows one table at a time instead of every language's table stacked on the page at once. */
+let transPath = [];
+function transGoto(idx){ transPath = idx<0?[]:transPath.slice(0,idx+1); renderTranslations(); }
+function transDrillLang(lang){ transPath = [{level:'lang', value:lang, label:lang}]; renderTranslations(); }
 function renderMissingLangNote(){
   const noteEl = document.getElementById("missingLangNote");
   const missing = MISSING_LANGS[currentSite] || [];
@@ -1064,13 +1271,36 @@ async function renderTranslations(){
   el.innerHTML = `<div class="loading">Loading…</div>`;
   const { data, error } = await supa.from("translations").select("*").eq("site", currentSite).order("created_at",{ascending:false});
   if(error){ el.innerHTML = `<div class="error-note">${error.message}</div>`; return; }
-  if(!data || !data.length){ el.innerHTML = `<div class="empty">No translation suggestions submitted yet for this site.</div>`; return; }
-  const byLang = groupBy(data, "lang");
-  el.innerHTML = Object.entries(byLang).map(([lang, rows])=>`
-    <div class="lang-group">
-      <h3>${lang} <span style="color:var(--muted);font-weight:400;">(${rows.length})</span></h3>
-      <table><thead><tr><th>Key</th><th>Suggestion</th><th>Note</th><th>Status</th><th>Endorsements</th><th></th></tr></thead><tbody>
-      ${rows.map(r=>`<tr>
+  const rows = data || [];
+
+  const crumbs = [{label:"All languages", idx:-1}, ...transPath.map((p,i)=>({label:p.label, idx:i}))];
+  document.getElementById("translationCrumbs").innerHTML = crumbs.map((c,i)=>{
+    const isLast = i===crumbs.length-1;
+    return `<span class="crumb ${isLast?'crumb-current':''}" ${isLast?'':`onclick="transGoto(${c.idx})"`}>${c.label}</span>${isLast?'':'<span class="crumb-sep">›</span>'}`;
+  }).join("");
+
+  if(!rows.length){ el.innerHTML = `<div class="empty">No translation suggestions submitted yet for this site.</div>`; return; }
+  const byLang = groupBy(rows, "lang");
+  const langStep = transPath.find(p=>p.level==='lang');
+
+  if(!langStep){
+    const entries = Object.entries(byLang).sort((a,b)=>b[1].length-a[1].length);
+    el.innerHTML = `<div class="explorer-list">${entries.map(([lang,rs])=>{
+      const pending = rs.filter(r=>r.status!=="approved").length;
+      return `<div class="explorer-row" onclick="transDrillLang(${escAttr(JSON.stringify(lang))})">
+        <span class="explorer-row-label">${lang}</span>
+        <span class="bar-n">(${rs.length})</span>
+        ${pending ? `<span class="pill prospect" style="margin:0;">${pending} pending</span>` : ""}
+        <span class="explorer-row-caret">›</span>
+      </div>`;
+    }).join("")}</div>`;
+    return;
+  }
+
+  const rs = byLang[langStep.value] || [];
+  el.innerHTML = !rs.length ? `<div class="empty">Nothing left for this language.</div>` : `
+    <div class="explorer-table-wrap"><table><thead><tr><th>Key</th><th>Suggestion</th><th>Note</th><th>Status</th><th>Endorsements</th><th></th></tr></thead><tbody>
+      ${rs.map(r=>`<tr>
         <td>${r.string_key}</td>
         <td>${(r.suggested_text||"").replace(/</g,"&lt;")}</td>
         <td>${r.source_note||""}</td>
@@ -1081,8 +1311,7 @@ async function renderTranslations(){
           <button class="btn danger" onclick="rejectTranslation(${escAttr(JSON.stringify(r.id))})">Reject</button>
         </td>
       </tr>`).join("")}
-      </tbody></table>
-    </div>`).join("");
+    </tbody></table></div>`;
 }
 async function approveTranslation(id){
   const { error } = await supa.from("translations").update({ status: "approved" }).eq("id", id);

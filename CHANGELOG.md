@@ -7,6 +7,49 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.5.0] — 2026-09-16
+
+### Added
+- **A single, condensed, breadcrumb-navigable Drill-down Explorer, replacing five different
+  layouts that each required scrolling through a stack of separate cards to see everything.**
+  Ed's own framing: "I just need a proper drill down sense and you can always come out ... for
+  example, Harare, you end up naming the towns in Harare, and those areas break down further." —
+  every panel below now works this way, condensed into one card per tab with its own internal
+  scroll, not a page you scroll up and down through:
+  - **Provider analytics** — City → Area/suburb (real, sourced areas — see `zwispqosd` v1.3.0 —
+    with an explicit "All of `<city>`" and "No area given" bucket for reports that predate this
+    field or skipped it) → ISP → that ISP's QoS/reliability/speed/net-conversion numbers plus the
+    individual reports behind them ("last unit"), replacing the six stacked filter/bar/table cards
+    from v0.4.0.
+  - **ISP licensing** — Status → ISP → the full record (contact, fee, renewal, notes), with an
+    "Edit this record ↑" button that loads it straight into the add/update form.
+  - **Benchmark reports** — Connection type (Mobile / Fixed-Wireless / Other-unlisted, from
+    `PROVIDER_DIRECTORY`) → ISP → opens the full report (still a standalone printable document in
+    a new tab, not squeezed into the card).
+  - **Moderation** — for the four tables with a real geography (`qos_reports`, `status_reports`,
+    `speed_reports`, `conversions`): City → Area → ISP → the actual deletable rows. The other
+    three tables (`referral_clicks`, `tester_feedback`, `translations`) have no comparable
+    geography to drill through, so they deliberately keep the flat table rather than a fake
+    hierarchy.
+  - **Translations** — Language → that language's suggestion queue (approve/reject), instead of
+    every language's table rendered at once.
+  - **Export is unchanged on purpose** — Ed was explicit that this tab should stay a
+    non-interactive report-picker, not a drill-down.
+- **Every Overview stat tile is now a clickable entry point** into the relevant drill-down instead
+  of a static number: QoS ratings/status reports/speed tests/switch-signup events/net conversions
+  jump to Provider analytics; referral clicks and tester feedback (no real ISP/geography to drill
+  through) jump to Moderation's flat table for that data; translations-pending jumps to the
+  Translations tab.
+- Every breadcrumb trail is clickable at every level — "always come out" — and switching the site
+  selector resets every tab's drill-down path so a breadcrumb from one country's data never gets
+  stranded showing another's empty state.
+
+### Notes
+- Companion to `zwispqosd` v1.3.0, which adds the real area/suburb picker these panels now surface.
+- Not yet ported to `bwispqosp`/`saispqosp`/`zaispqosp`/`moispqosp` — same shared codebase and
+  Supabase tables, so the identical change should land in all four eventually, but they have no
+  live tester data yet to drill into.
+
 ## [0.4.1] — 2026-09-16
 
 ### Fixed
