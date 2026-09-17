@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.4.0">
+<meta name="app-version" content="0.4.1">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -308,7 +308,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.4.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.4.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -1033,7 +1033,7 @@ async function refreshModerationTable(){
   const cols = Object.keys(data[0]).filter(c=>!["site"].includes(c));
   el.innerHTML = `<div style="overflow-x:auto;"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>
     ${data.map(row=>`<tr>${cols.map(c=>`<td>${row[c]===null||row[c]===undefined?"":String(row[c]).slice(0,140)}</td>`).join("")}
-      <td><button class="btn danger" onclick="deleteModRow(${JSON.stringify(row.id)})">Delete</button></td></tr>`).join("")}
+      <td><button class="btn danger" onclick="deleteModRow(${escAttr(JSON.stringify(row.id))})">Delete</button></td></tr>`).join("")}
   </tbody></table></div>`;
 }
 async function deleteModRow(id){
@@ -1077,8 +1077,8 @@ async function renderTranslations(){
         <td><span class="pill ${r.status==='approved'?'active':'prospect'}">${r.status}</span></td>
         <td>${r.endorsements||0}</td>
         <td class="btn-row">
-          ${r.status!=="approved" ? `<button class="btn" onclick="approveTranslation(${JSON.stringify(r.id)})">Approve</button>` : ""}
-          <button class="btn danger" onclick="rejectTranslation(${JSON.stringify(r.id)})">Reject</button>
+          ${r.status!=="approved" ? `<button class="btn" onclick="approveTranslation(${escAttr(JSON.stringify(r.id))})">Approve</button>` : ""}
+          <button class="btn danger" onclick="rejectTranslation(${escAttr(JSON.stringify(r.id))})">Reject</button>
         </td>
       </tr>`).join("")}
       </tbody></table>

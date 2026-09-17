@@ -7,6 +7,17 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.4.1] — 2026-09-16
+
+### Fixed
+- Defensively applied the same `escAttr()` fix from v0.4.0 to `deleteModRow`/`approveTranslation`/
+  `rejectTranslation`'s `onclick` handlers, which pass a row `id` the same
+  `JSON.stringify()`-in-a-double-quoted-attribute way. These happen to be safe today (`qos_reports`
+  and `translations` both use an `int8` id per SCHEMA.md, and `JSON.stringify()` doesn't quote
+  numbers) — but SCHEMA.md doesn't confirm the `id` type for every report table individually, and
+  the fix is free, so it's applied everywhere this call pattern occurs rather than left as a latent
+  risk if a table's `id` ever turns out to be a UUID/string.
+
 ## [0.4.0] — 2026-09-16
 
 ### Added
