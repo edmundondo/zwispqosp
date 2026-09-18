@@ -7,6 +7,33 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.6.0] — 2026-09-17
+
+### Added
+- **Role-based access control (RBAC) for the admin panel.** `admins.role` is now one of `viewer`
+  (read-only — the default for any newly-added admin), `country_admin` (read/write, scoped to the
+  country/site codes in `admins.scope`), or `global_admin` (full read/write across every country,
+  but only while break-glass is switched on). A "Global Admin · break-glass ON/OFF" badge now sits
+  next to "Signed in as…" in the header, with a toggle button for eligible global admins. Every
+  activation/deactivation calls a new `toggle_break_glass()` Postgres RPC — the only way that flag
+  can change — and writes a row to a new `admin_audit_log` table each time, so elevation is never
+  silent or standing-by-default. The four write actions (moderation delete, ISP-license save,
+  translation approve/reject) now check `canWrite(site)` client-side first; the real enforcement
+  is server-side RLS via new `has_write_access(site)` / `is_global_admin()` Postgres functions,
+  gating UPDATE/DELETE on every report table and on `provider_licenses`.
+- This closes a real gap: every admin row previously had unrestricted global read/write/delete
+  with zero per-country scoping, since `is_admin()` only ever checked "does this uid have *any*
+  row in `admins`" — read was already public on every table regardless, so the actual boundary
+  being fixed here is write/delete, not visibility.
+
+### Fixed
+- **The site-selector dropdown/header only ever showed a country once that country had at least
+  one row in `qos_reports`**, so a freshly-launched country's own site never appeared as an
+  `<option>` at all and the dropdown rendered visibly blank. `populateSiteSelect()` now always
+  seeds every country from `SITE_LABELS` up front (all five are already known there), then adds
+  any others found live — every deployed copy now shows its own country correctly from first
+  load, with or without report data yet.
+
 ## [0.5.1] — 2026-09-17
 
 ### Changed

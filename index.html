@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.5.1">
+<meta name="app-version" content="0.6.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -319,7 +319,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.5.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.6.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -500,6 +500,7 @@ const DAY_MS = 24*60*60*1000;
 
 let currentSite = "zw";
 let currentUser = null;
+let currentAdmin = null; // { role, scope, break_glass_eligible, break_glass_active } — RBAC row for the signed-in admin (v0.6.0)
 
 /* ---------- auth ---------- */
 async function tryRestoreSession(){
@@ -564,7 +565,9 @@ async function doSignIn(){
 let appWired = false;
 async function onSignedIn(user){
   if(currentUser && currentUser.id === user.id) return; // already handled (password + listener can both fire)
-  const { data: adminRow, error } = await supa.from("admins").select("email").eq("user_id", user.id).maybeSingle();
+  const { data: adminRow, error } = await supa.from("admins")
+    .select("email, role, scope, break_glass_eligible, break_glass_active")
+    .eq("user_id", user.id).maybeSingle();
   if(error || !adminRow){
     document.getElementById("loginMsg").className = "msg error";
     document.getElementById("loginMsg").textContent = "Signed in, but this account isn't in the admins table — access denied.";
@@ -572,6 +575,7 @@ async function onSignedIn(user){
     return;
   }
   currentUser = user;
+  currentAdmin = adminRow;
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
   renderWhoami(user);
@@ -580,13 +584,53 @@ async function onSignedIn(user){
   await loadActiveTab();
 }
 
+/* ---------- roles / RBAC (v0.6.0) ----------
+   admins.role is one of viewer | country_admin | global_admin — default is viewer (read-only;
+   read was already wide open to the public on every report table, so this only gates the
+   Supabase write/delete calls below, never what an admin can see). country_admin can write rows
+   whose site is in admins.scope. global_admin can write anywhere, but ONLY while
+   break_glass_active is true — deliberately not a standing always-on privilege. Elevation is an
+   explicit action via toggleBreakGlass() below, calling the toggle_break_glass() Postgres RPC,
+   which is the only way that flag can change and which writes an admin_audit_log row every time
+   — so "who had global write, and when" is always answerable later, not just "is currently an
+   admin." The checks here are a client-side UX nicety only (grey out a button, skip a round trip
+   that would just get rejected) — the real enforcement is server-side RLS via has_write_access(
+   site) / is_global_admin(), which apply regardless of what this JS does. */
+function canWrite(site){
+  if(!currentAdmin) return false;
+  if(currentAdmin.role === "global_admin") return !!currentAdmin.break_glass_active;
+  if(currentAdmin.role === "country_admin") return (currentAdmin.scope||[]).includes(site);
+  return false;
+}
+function roleLabel(){
+  if(!currentAdmin) return "";
+  if(currentAdmin.role === "global_admin") return currentAdmin.break_glass_active ? "Global Admin \u00b7 break-glass ON" : "Global Admin \u00b7 break-glass OFF";
+  if(currentAdmin.role === "country_admin") return `Country Admin (${(currentAdmin.scope||[]).join(", ")||"no sites granted"})`;
+  return "Viewer (read-only)";
+}
+async function toggleBreakGlass(){
+  if(!currentAdmin || currentAdmin.role !== "global_admin" || !currentAdmin.break_glass_eligible) return;
+  const next = !currentAdmin.break_glass_active;
+  const note = next ? (prompt("Optional: why are you elevating to global read/write? (this is logged)") || null) : null;
+  const { error } = await supa.rpc("toggle_break_glass", { p_active: next, p_note: note });
+  if(error){ alert(error.message); return; }
+  currentAdmin.break_glass_active = next;
+  renderWhoami(currentUser);
+}
+
 function renderWhoami(user){
   const hasGoogle = (user.identities||[]).some(i=>i.provider==="google");
   const el = document.getElementById("whoami");
+  const canToggle = currentAdmin && currentAdmin.role === "global_admin" && currentAdmin.break_glass_eligible;
+  const elevated = currentAdmin && currentAdmin.role === "global_admin" && currentAdmin.break_glass_active;
   el.innerHTML = `Signed in as ${user.email}
+    <span id="roleBadge" style="margin-left:8px;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid ${elevated ? "#ffb020" : "var(--border)"};${elevated ? "color:#ffb020;" : ""}">${roleLabel()}</span>
+    ${canToggle ? `<button class="btn" id="breakGlassBtn" type="button" style="margin-left:6px;padding:3px 9px;font-size:11px;">${elevated ? "🔒 Turn off break-glass" : "🔓 Break-glass: global R/W"}</button>` : ""}
     ${!hasGoogle ? `<button class="btn" id="linkGoogleBtn" type="button" style="margin-left:8px;padding:3px 9px;font-size:11px;">Link Google</button>` : ""}
     <button class="btn" id="addPasskeyBtn" type="button" style="margin-left:6px;padding:3px 9px;font-size:11px;">🔐 Add a passkey</button>
     <span id="securityMsg" style="margin-left:8px;font-size:11px;"></span>`;
+  const bgBtn = document.getElementById("breakGlassBtn");
+  if(bgBtn) bgBtn.addEventListener("click", toggleBreakGlass);
   const linkBtn = document.getElementById("linkGoogleBtn");
   if(linkBtn) linkBtn.addEventListener("click", async ()=>{
     const { error } = await supa.auth.linkIdentity({ provider: "google" });
@@ -614,11 +658,15 @@ document.getElementById("signOutBtn").addEventListener("click", async ()=>{
 /* ---------- sites ---------- */
 async function populateSiteSelect(){
   const sel = document.getElementById("siteSelect");
-  let sites = new Set(["zw"]);
+  // Always seed every known country, not just the ones with live report rows yet — otherwise a
+  // freshly-launched country's own site never appears as an <option> at all and the selector
+  // renders blank (the v0.4.0 bug: bw/za/zm/mz showed an empty dropdown/header until a real
+  // report landed in Supabase for that site). SITE_LABELS already knows all five up front.
+  let sites = new Set(Object.keys(SITE_LABELS));
   try{
     const { data } = await supa.from("qos_reports").select("site").limit(2000);
     (data||[]).forEach(r=>sites.add(r.site));
-  }catch(e){ /* fine, default to zw */ }
+  }catch(e){ /* fine, the default set already covers every known site */ }
   sel.innerHTML = [...sites].sort().map(s=>`<option value="${s}">${SITE_LABELS[s]||s}</option>`).join("");
   sel.value = currentSite;
 }
@@ -928,6 +976,7 @@ async function renderLicensing(){
 async function saveLicense(){
   const isp = document.getElementById("licIsp").value.trim();
   const msg = document.getElementById("licMsg");
+  if(!canWrite(currentSite)){ msg.className="msg error"; msg.textContent=`You don't have write access for ${SITE_LABELS[currentSite]||currentSite}.`; return; }
   if(!isp){ msg.className="msg error"; msg.textContent="ISP name is required."; return; }
   const row = {
     site: currentSite, isp,
@@ -1267,6 +1316,7 @@ async function refreshModerationTable(){
   el.innerHTML = !leafRows.length ? `<div class="empty">No rows here anymore.</div>` : modFlatTableHtml(leafRows);
 }
 async function deleteModRow(id){
+  if(!canWrite(currentSite)){ alert(`You don't have write access for ${SITE_LABELS[currentSite]||currentSite} yet — ask a Global Admin for Country Admin access to this site (or, if you already hold Global Admin, turn on break-glass).`); return; }
   if(!confirm("Delete this row permanently?")) return;
   const { error } = await supa.from(modTable).delete().eq("id", id);
   if(error){ alert(error.message); return; }
@@ -1342,11 +1392,13 @@ async function renderTranslations(){
     </tbody></table></div>`;
 }
 async function approveTranslation(id){
+  if(!canWrite(currentSite)){ alert(`You don't have write access for ${SITE_LABELS[currentSite]||currentSite}.`); return; }
   const { error } = await supa.from("translations").update({ status: "approved" }).eq("id", id);
   if(error){ alert(error.message); return; }
   await renderTranslations();
 }
 async function rejectTranslation(id){
+  if(!canWrite(currentSite)){ alert(`You don't have write access for ${SITE_LABELS[currentSite]||currentSite}.`); return; }
   if(!confirm("Reject and delete this suggestion?")) return;
   const { error } = await supa.from("translations").delete().eq("id", id);
   if(error){ alert(error.message); return; }
