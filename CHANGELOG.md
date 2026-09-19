@@ -7,6 +7,21 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.6.1] — 2026-09-18
+
+### Added
+- Malawi (`mw`) added to `SITE_LABELS`, `MISSING_LANGS` and `PROVIDER_DIRECTORY` — the site
+  selector now includes Malawi alongside Zimbabwe, Botswana, South Africa, Zambia and Mozambique.
+  `PROVIDER_DIRECTORY.mw` covers Airtel Malawi, TNM (Telekom Networks Malawi), Malawi
+  Telecommunications Limited (MTL) and Starlink — see `maispqosd`'s CHANGELOG for the sourcing
+  detail behind each figure. `MISSING_LANGS.mw` lists the eight Malawian languages still shipping
+  with empty `I18N` content on the public demo (Chitumbuka, Chiyao, Chilomwe, Chisena, Chitonga,
+  Chingoni, Chilambya, Chinyakyusa) — Chichewa isn't in this list since it already has real
+  best-effort draft content.
+- This same change was applied in lockstep to `bwispqosp`, `saispqosp`, `zaispqosp` and
+  `moispqosp`, plus the new `maispqosp` repo (first build, v0.1.0), so every admin panel's site
+  list stays in sync per the established template procedure.
+
 ## [0.6.0] — 2026-09-17
 
 ### Added

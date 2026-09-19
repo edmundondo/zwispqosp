@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.6.0">
+<meta name="app-version" content="0.6.1">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -319,7 +319,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.6.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.6.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -360,7 +360,7 @@ if(supa){
 }
 
 const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
-const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)", zm: "Zambia (zm)", mz: "Mozambique (mz)" };
+const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)", zm: "Zambia (zm)", mz: "Mozambique (mz)", mw: "Malawi (mw)" };
 
 /* ---------- known-blank languages, per site (audited against each demo's own I18N content
    2026-09-10 — this used to be a single hardcoded, Zimbabwe-only, and actually-wrong sentence
@@ -370,7 +370,8 @@ const MISSING_LANGS = {
   bw: ["Kgalagadi", "Mbukushu", "Tshwa", "!Xóõ"],
   za: ["Afrikaans", "isiZulu", "Sepedi", "siSwati", "isiNdebele"],
   zm: ["Bemba", "Lozi", "Kaonde", "Luvale", "Lunda"],
-  mz: ["Emakhuwa", "Elomwe", "Cisena", "Echuwabo", "Cindau", "Xitswa"]
+  mz: ["Emakhuwa", "Elomwe", "Cisena", "Echuwabo", "Cindau", "Xitswa"],
+  mw: ["Chitumbuka", "Chiyao", "Chilomwe", "Chisena", "Chitonga", "Chingoni", "Chilambya", "Chinyakyusa"]
 };
 
 /* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
@@ -494,6 +495,20 @@ const PROVIDER_DIRECTORY = {
     { name: "TVCABO Moçambique", type: "Fixed/Wireless", subscribers: null, subLabel: "no published current subscriber count",
       note: "Majority-owned by Visabeira Group (Portugal); a 2024 report referenced Visabeira 'seeking an 80% stake', implying it wasn't yet fully consolidated at that level. Fiber/cable broadband and pay-TV, primarily urban (Maputo, Beira, Matola, Nampula).",
       source: "No INCM or company-published subscriber figure found (2026 research pass)" }
+  ],
+  mw: [
+    { name: "Airtel Malawi", type: "Mobile", subscribers: 8800000, subLabel: "customers (company-reported, 2025 Annual Report)",
+      note: "Malawi's largest mobile operator, listed on the Malawi Stock Exchange and part of Airtel Africa. Reported 8.8 million customers in its 2025 Annual Report (year ended 31 December 2025), up 8.3% year-on-year — an officially published, audited figure.",
+      source: "Airtel Malawi Plc 2025 Annual Report" },
+    { name: "TNM (Telekom Networks Malawi)", type: "Mobile", subscribers: 7000000, subLabel: "GSM subscribers (press paraphrase of FY2025 results)",
+      note: "Malawi's other major mobile operator — together with Airtel Malawi it forms a tight duopoly on the MNO market, per independent industry analysis. TNM's own 2025 Annual Report reports its mobile and mobile-money (Mpamba) customer bases each grew by more than 1 million users during 2025; press coverage put the year-end GSM subscriber count at roughly 7 million, a news paraphrase rather than a number stated verbatim in the annual report itself.",
+      source: "TNM plc 2025 Annual Report; Malawi24 (29 Jul 2026)" },
+    { name: "Malawi Telecommunications Limited (MTL)", type: "Fixed/Mobile", subscribers: null, subLabel: "no public subscriber count",
+      note: "State-linked fixed-line, mobile and ICT provider, a subsidiary of Press Corporation Plc. No subscriber or customer total is disclosed in Press Corporation's public materials, MTL's own site, or any MACRA publication found for this build.",
+      source: "Press Corporation Plc / MTL public materials" },
+    { name: "Starlink", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Satellite internet service. MACRA granted Starlink its first satellite broadband licenses on 21 October 2022, and the service went live commercially around mid-2023 — the fifth African country with access at that point. No Malawi-specific subscriber count has been published.",
+      source: "MACRA licensing announcement (Oct 2022); press reporting on the 2023 launch" }
   ]
 };
 const DAY_MS = 24*60*60*1000;
