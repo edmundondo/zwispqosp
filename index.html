@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.7.0">
+<meta name="app-version" content="0.8.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -320,7 +320,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.7.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.8.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -1758,7 +1758,7 @@ document.getElementById("exportEpubBtn").addEventListener("click", doExportEpub)
 function renderExportControls(){
   const el = document.getElementById("exportControls");
   el.innerHTML = `<select class="status-edit" id="exportTableSelect">
-      ${REPORT_TABLES.concat(["provider_licenses"]).map(t=>`<option value="${t}">${t}</option>`).join("")}
+      ${REPORT_TABLES.concat(["provider_licenses","customers","customer_emails"]).map(t=>`<option value="${t}">${t==="customers"?"customers (follow-up phone numbers)":t==="customer_emails"?"customer_emails (follow-up emails)":t}</option>`).join("")}
     </select>
     <button class="btn primary" style="width:auto;margin-left:8px;" id="exportBtn" type="button">Download CSV</button>
     <div class="msg" id="exportMsg"></div>`;
@@ -1770,14 +1770,19 @@ async function doExport(){
   msg.textContent = "Preparing…";
   // provider_licenses also carries a site column (see saveLicense) so every table in the
   // dropdown is scoped to the selected site, no exception.
-  let q = supa.from(table).select("*").order("created_at",{ascending:false}).limit(10000).eq("site", currentSite);
+  // customers / customer_emails (follow-up contacts, added 2026-09-23) have last_seen instead of created_at.
+  const orderCol = (table==="customers" || table==="customer_emails") ? "last_seen" : "created_at";
+  let q = supa.from(table).select("*").order(orderCol,{ascending:false}).limit(10000).eq("site", currentSite);
   const { data, error } = await q;
   if(error){ msg.className="msg error"; msg.textContent = error.message; return; }
   if(!data || !data.length){ msg.className="msg"; msg.textContent = "No rows to export."; return; }
   const cols = Object.keys(data[0]);
   const csv = [cols.join(",")].concat(
     data.map(row=>cols.map(c=>{
-      const v = row[c]===null||row[c]===undefined ? "" : String(row[c]);
+      let v = row[c]===null||row[c]===undefined ? "" : String(row[c]);
+      // Neutralise spreadsheet formula injection from visitor-typed text (=, +, -, @ at the start),
+      // but leave E.164 phone numbers (+263…) readable as-is.
+      if(/^[=+\-@\t\r]/.test(v) && !/^\+\d{8,15}$/.test(v)) v = "'" + v;
       return '"' + v.replace(/"/g,'""') + '"';
     }).join(","))
   ).join("\n");

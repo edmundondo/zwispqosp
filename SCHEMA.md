@@ -252,6 +252,27 @@ the site ships — an unknown column fails the whole insert, not just that field
 
 ---
 
+## Follow-up contacts: E.164 phones, optional email, write-only RPCs (2026-09-23)
+
+Migration `contact_rpc_e164_and_email_option` (SQL in `supabase-contact-migration.sql`).
+
+- **Found while building this:** the demo sites saved phone numbers with supabase-js `.upsert()`
+  on `customers` = `INSERT … ON CONFLICT DO UPDATE`, which Postgres only allows when the row passes
+  a SELECT policy. `customers` has (rightly) no public SELECT policy, so **every contact upsert had
+  always failed with 42501** — no follow-up number was ever stored. The table was empty.
+- Visitors now write contacts only through two `SECURITY DEFINER` RPCs, granted to `anon`:
+  `upsert_contact_phone(p_phone, p_site, p_isp)` (requires E.164 `^\+[1-9][0-9]{7,14}$`) and
+  `add_contact_email(p_email, p_site)` (lower-cased, format-checked). Both validate `p_site` and
+  fill `country` from `site_calling_code(site)`. Visitors can never read either table back.
+- `customers` gained `site`; the public INSERT/UPDATE policies were dropped (the old UPDATE policy
+  let anyone overwrite any row). New `customer_emails (email PK, site, country, first_seen,
+  last_seen)`. Both: `is_admin()` SELECT, `has_write_access(site)` DELETE; exportable from the
+  admin Raw CSV export.
+- Phone format rule: demo sites show a fixed `+<cc>` prefix, accept the local number with or
+  without the trunk 0 (or a full international number), and convert to E.164 before sending.
+
+---
+
 ## Known gaps / follow-ups
 
 - [ ] Confirm whether `site` values other than `'zw'` already exist in any table —
