@@ -7,6 +7,24 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.7.0] — 2026-09-23
+
+### Added
+- **Pipeline health card on Overview.** Per table, for the selected site: when the last real
+  public submission arrived, counts for the last 24h / 7 days, and distinct devices (7d), with a
+  🟢/🟡/🔴/⚪ freshness flag. Added because a silent backend rejection (below) looked exactly like
+  "no testers yet" on this dashboard.
+- `supabase-antispam-migration.sql` — the exact SQL of that migration, kept here (this repo holds the project's shared migrations).
+
+### Fixed
+- A panel whose backend fetch failed (e.g. an expired login → `JWT expired`) stayed on
+  "Loading…" forever because the error was only logged to the console. It now shows the real
+  error in the panel, with a sign-in-again hint for auth errors.
+- Root cause of missing tester results, fixed in the shared database (migration
+  `add_device_id_antispam_and_open_lang_codes`): the public sites send a `device_id` column that
+  didn't exist, so every public insert was rejected. Also opened `translations.lang` to any
+  2–4 letter code and added the per-device rate-limit trigger the demo sites' comments promised.
+
 ## [0.6.1] — 2026-09-18
 
 ### Added

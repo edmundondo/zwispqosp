@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.6.1">
+<meta name="app-version" content="0.7.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -210,6 +210,7 @@
   <main>
     <div class="panel active" id="panel-overview">
       <div class="stat-grid" id="overviewStats"></div>
+      <div class="card" id="pipelineHealth"></div>
       <div class="card">
         <h2>What this pulls together</h2>
         <div class="hint" style="margin:0;">
@@ -319,7 +320,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.6.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.7.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -722,6 +723,16 @@ async function loadActiveTab(){
     else if(tab==="export") renderExportControls();
   }catch(e){
     console.error(e);
+    // v0.7.0: never leave a panel stuck on "Loading…" — surface the real backend error.
+    const panel = document.getElementById("panel-" + tab);
+    const msg = (e && (e.message || e.code)) ? String(e.message || e.code) : "Unknown error";
+    const authHint = /jwt|401|token|auth/i.test(msg) ? " Your login may have expired — sign out and sign in again." : "";
+    if(panel){
+      let box = panel.querySelector(".load-error");
+      if(!box){ box = document.createElement("div"); box.className = "card load-error"; panel.prepend(box); }
+      box.innerHTML = `<b style="color:#e5484d;">Couldn't load this panel from the backend.</b>
+        <div class="hint" style="margin:6px 0 0;">${escAttr(msg)}.${authHint}</div>`;
+    }
   }
 }
 
@@ -801,6 +812,39 @@ async function renderOverview(){
   el.innerHTML = stats.map(s=>`<div class="stat stat-clickable" onclick="${s.go}" title="Click to drill into this data">
     <div class="num">${s.num}</div><div class="lbl">${s.lbl} <span class="explorer-row-caret">›</span></div>
   </div>`).join("");
+  document.querySelectorAll(".load-error").forEach(b=>b.remove());
+  renderPipelineHealth({ qos_reports: qos, status_reports: status, speed_reports: speed, conversions: conv,
+    referral_clicks: ref, tester_feedback: fb });
+}
+
+/* ---------- pipeline health (v0.7.0) ----------
+   Added after a silent outage (2026-09-23): every public submission was being rejected by the
+   database (a missing `device_id` column) while this dashboard just showed flat zeros, which looks
+   identical to "no testers yet". This card shows, per table, when the last real submission for the
+   selected site arrived and how many arrived in the last 24h / 7 days, and flags a table that has
+   gone quiet — so a broken pipeline is visible at a glance instead of being mistaken for no traffic. */
+function renderPipelineHealth(byTable){
+  const box = document.getElementById("pipelineHealth");
+  if(!box) return;
+  const now = Date.now(), DAY = 86400000;
+  const labels = { qos_reports:"QoS ratings", status_reports:"Status reports", speed_reports:"Speed tests",
+    conversions:"Switch/signup", referral_clicks:"Referral clicks", tester_feedback:"Tester feedback" };
+  const rows = Object.keys(labels).map(t=>{
+    const r = byTable[t] || [];
+    const last = r.length ? new Date(r[0].created_at).getTime() : null;
+    const d1 = r.filter(x=>now - new Date(x.created_at).getTime() < DAY).length;
+    const d7 = r.filter(x=>now - new Date(x.created_at).getTime() < 7*DAY).length;
+    const devices = new Set(r.filter(x=>now - new Date(x.created_at).getTime() < 7*DAY && x.device_id).map(x=>x.device_id)).size;
+    const age = last ? Math.floor((now - last)/DAY) : null;
+    const dot = last === null ? "⚪" : (age < 2 ? "🟢" : (age < 7 ? "🟡" : "🔴"));
+    const lastTxt = last === null ? "never" : new Date(last).toLocaleString();
+    return `<tr><td>${dot} ${labels[t]}</td><td>${lastTxt}</td><td style="text-align:right;">${d1}</td><td style="text-align:right;">${d7}</td><td style="text-align:right;">${devices}</td></tr>`;
+  }).join("");
+  box.innerHTML = `<h2>Pipeline health — ${escAttr(SITE_LABELS[currentSite] || currentSite)}</h2>
+    <div class="hint" style="margin:0 0 8px;">When did real submissions last arrive from the public site? 🟢 under 2 days · 🟡 under 7 · 🔴 older · ⚪ never. If testers say they've submitted but this stays ⚪/🔴, the pipeline is broken — check Supabase logs for rejected POSTs.</div>
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr><th style="text-align:left;">Table</th><th style="text-align:left;">Last received</th><th style="text-align:right;">24h</th><th style="text-align:right;">7d</th><th style="text-align:right;">Devices (7d)</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
 }
 
 /* ---------- provider analytics: unified breadcrumb drill-down (v0.5.0) ----------

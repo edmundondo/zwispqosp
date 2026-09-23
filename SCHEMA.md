@@ -190,7 +190,7 @@ TjiKalanga). Auto-promotes to "approved" after 2 endorsements.
 |---|---|---|
 | id | int8 | PK |
 | site | text | |
-| lang | text | e.g. "sn", "nd", "kck" |
+| lang | text | e.g. "sn", "nd", "kck", "zu" — any 2–4 letter code (format CHECK since 2026-09-23) |
 | string_key | text | |
 | suggested_text | text | |
 | source_note | text | |
@@ -222,6 +222,33 @@ private repo, treat it as environment config: reference where it lives
 (Supabase dashboard → Settings → API), not the literal string. If you want
 it in a file for your own reference, put it in a `.env` file and add `.env`
 to `.gitignore` before the first commit.
+
+---
+
+## `device_id`, per-device rate limit, open language codes (2026-09-23)
+
+Applied as Supabase migration `add_device_id_antispam_and_open_lang_codes`; the exact SQL is
+kept in `supabase-antispam-migration.sql` in this repo (the file every `*ispqosd` site's
+SpamGuard comment refers to — it had never existed until now).
+
+- **`device_id text` (nullable, ≤80 chars)** added to all seven report tables
+  (`qos_reports`, `status_reports`, `speed_reports`, `conversions`, `translations`,
+  `referral_clicks`, `tester_feedback`), with a partial index on `(device_id, created_at desc)`.
+  It's SpamGuard's anonymous random per-browser token — not identity, no PII. **Why this
+  mattered:** every demo site had been sending `device_id` on its inserts while the column
+  didn't exist, so PostgREST rejected every public submission with HTTP 400 (`PGRST204`) —
+  the reason no tester results were reaching the backend.
+- **`device_rate_limit` BEFORE INSERT trigger** on the same seven tables → `enforce_device_rate_limit()`
+  (security definer, EXECUTE revoked from `anon`/`authenticated`): more than 30 rows per table per
+  `device_id` in the last hour raises `rate_limited` (errcode `P0001`). Rows without a
+  `device_id` are not limited (backward compatible).
+- **`translations_lang_check`** no longer hardcodes Zimbabwe's 16 language codes (which silently
+  blocked every translation suggestion from bw/za/zm/mz/mw); it's now a format check,
+  `lang ~ '^[a-z]{2,4}(-[a-z0-9]{2,8})?$'`, so a new country's language chips work with no
+  schema change.
+
+**Template rule:** any new column a `*d` site starts sending must land in the schema *before*
+the site ships — an unknown column fails the whole insert, not just that field.
 
 ---
 
