@@ -7,6 +7,14 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [tools] — 2026-09-23
+
+### Added
+- `tools/build_lite.py` + `tools/lite_strings.json` + `tools/README.md`: the Lite-page generator for
+  all six demo sites (multilingual, reuse-only translations, `--check` mode for CI-style drift
+  checks). Supersedes the old single-language generator bundled with the `bpqos` skill, which still
+  pointed at retired repo names and only produced English pages.
+
 ## [0.8.0] — 2026-09-23
 
 ### Added
