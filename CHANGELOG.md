@@ -7,6 +7,15 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.8.1] — 2026-10-07
+
+### Changed
+- `PROVIDER_DIRECTORY.bw` synced with `bwispqosd` v1.6.0: BOCRA 2025 Annual Report figures (Orange 46%,
+  Mascom 40%, BTC 14%; Starlink 8,075 connections, now BOCRA-sourced).
+- `tools/build_lite.py`: Lite pages now carry the independent-tracker header line and an
+  independence note in the footer; Mozambique's footer source line corrected to "company disclosures
+  and press reporting" (INCM publishes no consolidated operator report).
+
 ## [tools] — 2026-09-23
 
 ### Added

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.8.0">
+<meta name="app-version" content="0.8.1">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -320,7 +320,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.8.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.8.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -415,18 +415,18 @@ const PROVIDER_DIRECTORY = {
       source: "POTRAZ IAP licence list, 2024" }
   ],
   bw: [
-    { name: "Orange Botswana", type: "Mobile", subscribers: null, subLabel: "43% of mobile subscriptions (BOCRA-published share)",
-      note: "Botswana's largest mobile operator by subscriber share as of March 2024 — the first time Orange has led the market since launch. Majority-owned (69%) by Orange S.A. (France), with the remainder held by a local investor consortium.",
-      source: "BOCRA 2024 Annual Report (period to March 2024)" },
-    { name: "Mascom Wireless", type: "Mobile", subscribers: null, subLabel: "42% of mobile subscriptions (BOCRA-published share)",
-      note: "Botswana's second-largest mobile operator by subscriber share as of March 2024. Owned 60% by the Botswana Public Officers Pensions Fund and 40% by Econet Wireless. Was the first operator to launch 5G in Botswana (Gaborone, February 2022).",
-      source: "BOCRA 2024 Annual Report (period to March 2024)" },
+    { name: "Orange Botswana", type: "Mobile", subscribers: null, subLabel: "46% of mobile subscriptions (BOCRA-published share)",
+      note: "Botswana's largest mobile operator by subscriber share — 46% as of March 2025, up from 43% a year earlier, when Orange first overtook Mascom. Majority-owned (69%) by Orange S.A. (France), with the remainder held by a local investor consortium.",
+      source: "BOCRA 2025 Annual Report (period to March 2025)" },
+    { name: "Mascom Wireless", type: "Mobile", subscribers: null, subLabel: "40% of mobile subscriptions (BOCRA-published share)",
+      note: "Botswana's second-largest mobile operator by subscriber share — 40% as of March 2025, down from 42% a year earlier. Owned 60% by the Botswana Public Officers Pensions Fund and 40% by Econet Wireless. Was the first operator to launch 5G in Botswana (Gaborone, February 2022).",
+      source: "BOCRA 2025 Annual Report (period to March 2025)" },
     { name: "BTC Mobile (BeMobile)", type: "Mobile", subscribers: 757529, subLabel: "active mobile subscribers (company-reported, FY2026)",
-      note: "State-linked operator (majority government-owned via the BSE-listed Botswana Telecommunications Corporation) held 15% of the mobile subscriber market per BOCRA as of March 2024. Its own FY2026 results separately reported 757,529 active mobile subscribers, up 30% year-on-year — a later reporting period than the BOCRA share figure, so the two numbers aren't directly comparable.",
-      source: "BOCRA 2024 Annual Report; BTC FY2026 results via BW TechZone (Aug 2026)" },
+      note: "State-linked operator (majority government-owned via the BSE-listed Botswana Telecommunications Corporation) held 14% of the mobile subscriber market per BOCRA as of March 2025 (15% a year earlier). Its own FY2026 results separately reported 757,529 active mobile subscribers, up 30% year-on-year — a later reporting period than the BOCRA share figure, so the two numbers aren't directly comparable.",
+      source: "BOCRA 2025 Annual Report; BTC FY2026 results via BW TechZone (Aug 2026)" },
     { name: "Starlink", type: "Fixed/Wireless", subscribers: 8075, subLabel: "satellite broadband customers",
-      note: "Satellite internet service, commercially launched in Botswana in August 2024 after BOCRA licensing. Reported at roughly 8,075 customers (about 3.9% of fixed broadband connections) as of BOCRA's most recent annual report, via press reporting — not independently verified against the primary BOCRA table.",
-      source: "BOCRA Annual Report data, via BW TechZone (2026)" },
+      note: "Satellite internet service, commercially launched in Botswana in August 2024 after BOCRA licensing. BOCRA reports 8,075 Starlink satellite connections as of March 2025 — 3.89% of Botswana's 207,702 fixed broadband subscriptions.",
+      source: "BOCRA 2025 Annual Report (period to March 2025)" },
     { name: "Independent ISPs", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
       note: "BOCRA licenses a number of smaller independent ISPs beyond the operators above. No combined subscriber or market-share figure for this group is published. BoFiNet, Botswana's wholesale national fibre backbone operator, isn't listed separately here as it has no retail subscribers of its own.",
       source: "BOCRA List of Internet Service Providers" }
