@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-build_lite.py v2 (2026-09-23) — multilingual no-script Lite pages for all six *ispqosd sites.
+build_lite.py v2 (2026-09-23) — multilingual no-script Lite pages for all seven *ispqosd sites.
 
 Usage:
-    python3 build_lite.py <dir-containing-the-six-*ispqosd-clones> [--check]
+    python3 build_lite.py <dir-containing-the-seven-*ispqosd-clones> [--check]
 
 For every site it:
   1. reads <site>/index.html and extracts
@@ -50,6 +50,9 @@ SITES = {
   "maispqosd": dict(site="mw", country="Malawi", title="Malawi ISP Tracker", regulator="MACRA",
                     eyebrow="Independent tracker · MACRA-licensed providers", sms=None,
                     source="provider data from company annual reports and MACRA licensing records"),
+  "naispqosd": dict(site="na", country="Namibia", title="Namibia ISP Tracker", regulator="CRAN",
+                    eyebrow="Independent tracker · CRAN-licensed providers", sms=None,
+                    source="provider data from company reports and CRAN publications"),
 }
 
 # site -> {chip code: (strings key, low_confidence_note or None)}
@@ -65,6 +68,7 @@ LITE_REUSE = {
          "ts": ("ts", "Reused from the Zimbabwe site's Shangani draft — Xichangana is a close variety, "
                       "so lower confidence.")},
   "mw": {"ny": ("ny", None)},
+  "na": {"tn": ("tn", None)},
 }
 
 FIELD_RE = {

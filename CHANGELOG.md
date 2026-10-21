@@ -7,6 +7,20 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [0.9.0] — 2026-10-20
+
+### Added
+- **Namibia (`na`)** is now a selectable site: `SITE_LABELS`, `MISSING_LANGS` (11 languages still blank
+  on the public site) and `PROVIDER_DIRECTORY.na` (MTC, tn mobile, Telecom Namibia, Paratus Namibia,
+  Africa Online Namibia — same entries as `naispqosd` v1.0.0's `DATA`). Its own deployment is
+  `naispqosp`.
+- `tools/build_lite.py`: Namibia added to `SITES` (no SMS number yet) and `LITE_REUSE` (Setswana,
+  same language as Botswana's); generates `naispqosd/lite.html` + `lite-tn.html`. Now covers seven sites.
+- `supabase-namibia-migration.sql`: migration `add_namibia_site_support` (applied 2026-10-20) adds `'na'` to
+  the `site` CHECK on all 7 report tables + `customers` + `customer_emails`, to the 7 public-insert RLS
+  allow-lists, to the `upsert_contact_phone`/`add_contact_email` allow-lists, and `site_calling_code('na') = '264'`.
+  Tested first in a rolled-back transaction as `anon`.
+
 ## [0.8.1] — 2026-10-07
 
 ### Changed

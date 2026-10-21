@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-version" content="0.8.1">
+<meta name="app-version" content="0.9.0">
 <title>Matokipedo Admin</title>
 <style>
   :root{
@@ -320,7 +320,7 @@
       <span class="matokipedo-tagline">Live infrastructure monitoring by Matokipedo</span>
     </div>
     <span class="admin-line">Matokipedo Admin · reads/writes via Supabase Row Level Security — no service-role key is embedded in this file.</span>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.8.1 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">v0.9.0 &middot; <a href="CHANGELOG.md" style="color:inherit;">changelog</a></div>
   </footer>
 </div>
 
@@ -361,7 +361,7 @@ if(supa){
 }
 
 const REPORT_TABLES = ["qos_reports","status_reports","speed_reports","conversions","translations","referral_clicks","tester_feedback"];
-const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)", zm: "Zambia (zm)", mz: "Mozambique (mz)", mw: "Malawi (mw)" };
+const SITE_LABELS = { zw: "Zimbabwe (zw)", bw: "Botswana (bw)", za: "South Africa (za)", zm: "Zambia (zm)", mz: "Mozambique (mz)", mw: "Malawi (mw)", na: "Namibia (na)" };
 
 /* ---------- known-blank languages, per site (audited against each demo's own I18N content
    2026-09-10 — this used to be a single hardcoded, Zimbabwe-only, and actually-wrong sentence
@@ -372,7 +372,8 @@ const MISSING_LANGS = {
   za: ["Afrikaans", "isiZulu", "Sepedi", "siSwati", "isiNdebele"],
   zm: ["Bemba", "Lozi", "Kaonde", "Luvale", "Lunda"],
   mz: ["Emakhuwa", "Elomwe", "Cisena", "Echuwabo", "Cindau", "Xitswa"],
-  mw: ["Chitumbuka", "Chiyao", "Chilomwe", "Chisena", "Chitonga", "Chingoni", "Chilambya", "Chinyakyusa"]
+  mw: ["Chitumbuka", "Chiyao", "Chilomwe", "Chisena", "Chitonga", "Chingoni", "Chilambya", "Chinyakyusa"],
+  na: ["Oshindonga", "Oshikwanyama", "Khoekhoegowab", "Afrikaans", "Otjiherero", "Rukwangali", "Silozi", "German", "Thimbukushu", "Rumanyo", "Ju|'hoansi"]
 };
 
 /* ---------- provider directory (for the formatted exports moved in from zwispqosd) ----------
@@ -510,6 +511,23 @@ const PROVIDER_DIRECTORY = {
     { name: "Starlink", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
       note: "Satellite internet service. MACRA granted Starlink its first satellite broadband licenses on 21 October 2022, and the service went live commercially around mid-2023 — the fifth African country with access at that point. No Malawi-specific subscriber count has been published.",
       source: "MACRA licensing announcement (Oct 2022); press reporting on the 2023 launch" }
+  ],
+  na: [
+    { name: "MTC", type: "Mobile", subscribers: 2300000, subLabel: "active subscribers (company-reported, FY to 30 Sep 2025)",
+      note: "Mobile Telecommunications Limited, Namibia's largest mobile operator. Its 2025 Integrated Annual Report (year to 30 September 2025) reports about 2.3 million active subscribers (about 2.1 million prepaid and 182,194 postpaid) and 86.5% 4G population coverage; commercial 5G launched in August 2025. Listed on the Namibian Stock Exchange since November 2021, with the state-owned NPTH holding at least 51%. CRAN's dominance study (end-2023 data) put MTC at about 82% of mobile users.",
+      source: "MTC Integrated Annual Report 2025; CRAN dominance study (gazetted Aug 2024)" },
+    { name: "tn mobile (Telecom Namibia)", type: "Mobile", subscribers: 336000, subLabel: "mobile subscribers (Omdia estimate, end of June 2025)",
+      note: "The mobile brand of state-owned Telecom Namibia. CRAN's dominance study counted 454,447 wireless users (about 17% share) at end-2023; research firm Omdia estimated about 336,000 mobile subscribers at end of June 2025 (via Connecting Africa, Sep 2025). Telecom Namibia's own site gives about 480,672 fixed and mobile customers combined, undated. No audited mobile-only figure was found.",
+      source: "CRAN dominance study (end-2023); Omdia via Connecting Africa (4 Sep 2025)" },
+    { name: "Telecom Namibia", type: "Fixed/Wireless", subscribers: 159900, subLabel: "wired broadband subscribers (CRAN, end-2023)",
+      note: "State-owned fixed-line operator (ADSL, fibre and fixed wireless) with over 13,000 km of backbone fibre. CRAN's dominance study counted 159,900 wired broadband subscribers at end-2023 — about 90% of the 178,600 wired broadband subscriptions in the country. Mobile service is listed separately as tn mobile.",
+      source: "CRAN dominance study (gazetted Aug 2024); telecom.na" },
+    { name: "Paratus Namibia", type: "Fixed/Wireless", subscribers: null, subLabel: "no absolute subscriber count published",
+      note: "NSX-listed provider of fibre, Sky-Fi fixed wireless and VSAT. Launched Namibia's third mobile network (4G LTE only) on 2 September 2025, covering 50 towns and 80 communities after a N$600m investment. Published only growth rates: mobile subscribers up 69% from July to December 2025, and CRAN's Q2 2026 bulletin reported Paratus subscriber growth of 11% in the quarter. Rated here as one provider across fixed and mobile.",
+      source: "Paratus Namibia Holdings interim results (Dec 2025); CRAN Q2 2026 bulletin via The Brief (18 Sep 2026)" },
+    { name: "Africa Online Namibia", type: "Fixed/Wireless", subscribers: null, subLabel: "no public subscriber count",
+      note: "Fixed and wireless internet provider (licensee Mwireless t/a Africa Online, CRAN comprehensive licence; formerly Mweb Namibia, rebranded 2010). Since November 2024 it also sells fibre over Demshi's network (about 15,000 homes passed in Windhoek, Walvis Bay and Swakopmund). No subscriber figure published.",
+      source: "CRAN licensee register (Nov 2025); The Brief (15 Nov 2024)" }
   ]
 };
 const DAY_MS = 24*60*60*1000;

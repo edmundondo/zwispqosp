@@ -1,13 +1,13 @@
 # tools/
 
-## build_lite.py — Lite page generator (all six *ispqosd sites)
+## build_lite.py — Lite page generator (all seven *ispqosd sites)
 
 Generates the no-script `lite.html` + `lite-<lang>.html` pages for every demo site from each
 site's own `index.html` (providers from `const DATA`, language list from the language chips,
 version from `<meta name="app-version">`) and the Lite UI strings in `lite_strings.json`.
 
 ```
-# from a folder that contains all six *ispqosd clones side by side
+# from a folder that contains all seven *ispqosd clones side by side
 python3 zwispqosp/tools/build_lite.py .          # regenerate
 python3 zwispqosp/tools/build_lite.py . --check  # exit 1 if any Lite page (or LITE_LANGS) is stale
 ```
