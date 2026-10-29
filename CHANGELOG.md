@@ -7,6 +7,15 @@ All notable changes to the Matokipedo privileged admin backend are recorded here
 The version number shown here matches the `<meta name="app-version">` tag in `index.html` and the
 `v{version}` badge in the page's footer.
 
+## [Unreleased] — 2026-10-29
+
+### Added
+- `supabase-reports-migration.sql`: `public.city_regions` (92 cities → province/region/district for all
+  seven countries) and `public.qos_period_report()` — filtered weekly/monthly/quarterly/annual/custom
+  reports (country › province › city › area, status reports, speed tests, provider scorecard, ratings,
+  switches, feedback, translations; contacts as counts only), returned as email-ready HTML + a CSV
+  attachment. Not callable by visitors. Used by the scheduled report emails (see the `ispqos-reports` skill).
+
 ## [0.9.0] — 2026-10-20
 
 ### Added
